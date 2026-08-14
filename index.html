@@ -574,19 +574,58 @@
       font-weight: 800;
     }
 
-    .repeat-bar {
+    .score-barline {
       position: absolute;
       z-index: 5;
       top: 22px;
-      left: -2px;
-      width: 4px;
       height: 65px;
-      border-right: 1px solid #403832;
-      border-left: 2px solid #403832;
       pointer-events: none;
     }
 
-    .repeat-bar::after {
+    .score-barline[data-edge="row-start"] { left: 0; }
+    .score-barline[data-edge="internal"] { left: 0; }
+    .score-barline[data-edge="row-end"] { right: 0; }
+
+    .score-barline[data-kind="single"] {
+      width: 1px;
+      background: #403832;
+    }
+
+    .score-barline[data-kind="double"] {
+      width: 5px;
+      border-right: 1px solid #403832;
+      border-left: 1px solid #403832;
+    }
+
+    .score-barline[data-kind="final"] {
+      width: 6px;
+      border-right: 3px solid #403832;
+      border-left: 1px solid #403832;
+    }
+
+    .score-barline[data-kind="repeat-start"],
+    .score-barline[data-kind="repeat-end"] {
+      width: 5px;
+    }
+
+    .score-barline[data-kind="repeat-start"] {
+      border-right: 1px solid #403832;
+      border-left: 3px solid #403832;
+    }
+
+    .score-barline[data-kind="repeat-end"] {
+      border-right: 3px solid #403832;
+      border-left: 1px solid #403832;
+    }
+
+    .score-barline[data-edge="internal"][data-kind="double"],
+    .score-barline[data-edge="internal"][data-kind="final"],
+    .score-barline[data-edge="internal"][data-kind="repeat-end"] {
+      translate: -100% 0;
+    }
+
+    .score-barline[data-kind="repeat-start"]::after,
+    .score-barline[data-kind="repeat-end"]::after {
       position: absolute;
       top: 9px;
       color: #403832;
@@ -597,8 +636,13 @@
       white-space: pre;
     }
 
-    .repeat-bar[data-kind="repeat-start"]::after { left: 6px; }
-    .repeat-bar[data-kind="repeat-end"]::after { right: 6px; }
+    .score-barline[data-kind="repeat-start"]::after { left: 7px; }
+    .score-barline[data-kind="repeat-end"]::after { right: 7px; }
+
+    .measure.has-left-barline::before,
+    .measure.has-right-barline:last-child::after {
+      display: none;
+    }
 
     .score-legend {
       display: flex;
@@ -945,7 +989,15 @@
       meter: "2/4",
       events: /** @type {DemoEvent[]} */ (DEMO_EVENTS),
       marks: /** @type {ScoreMark[]} */ (DEMO_MARKS),
-      barlineKinds: { "0:0": "repeat-start", "0:4": "repeat-end" },
+      barlineKinds: {
+        "0:0": "repeat-start",
+        "0:4": "repeat-end",
+        "1:7": "double",
+        "2:7": "final",
+        "3:3": "repeat-start",
+        "3:6": "single",
+        "3:7": "repeat-end"
+      },
       rows: 4,
       measuresPerRow: 6,
       rowMeasureCounts: [6, 7, 7, 7],
@@ -1209,12 +1261,22 @@
       return strings.length ? Math.max(...strings) : 2;
     }
 
-    function appendRepeatBar(measure, kind) {
-      if (kind !== "repeat-start" && kind !== "repeat-end") return;
+    const BARLINE_LABELS = Object.freeze({
+      single: "通常線",
+      double: "2本線",
+      "repeat-start": "繰り返し開始",
+      "repeat-end": "繰り返し終了",
+      final: "終止線"
+    });
+
+    function appendBarline(measure, kind, edge) {
+      if (!Object.prototype.hasOwnProperty.call(BARLINE_LABELS, kind)) return;
       const bar = document.createElement("span");
-      bar.className = "repeat-bar";
+      bar.className = "score-barline";
       bar.dataset.kind = kind;
-      bar.setAttribute("aria-label", kind === "repeat-start" ? "繰り返し開始" : "繰り返し終了");
+      bar.dataset.edge = edge;
+      bar.setAttribute("aria-label", BARLINE_LABELS[kind]);
+      measure.classList.add(edge === "row-end" ? "has-right-barline" : "has-left-barline");
       measure.append(bar);
     }
 
@@ -1487,12 +1549,13 @@
         row.className = "score-row";
         const columnWidths = Array.from({ length: rowCount }, (_, column) => minimumWidthForMeasure(measureIndex + column));
         row.style.gridTemplateColumns = columnWidths.map((width) => `minmax(${width}px, 1fr)`).join(" ");
+        let lastMeasure = null;
         for (let column = 0; column < rowCount; column += 1) {
           const measure = document.createElement("div");
           measure.className = "measure";
           measure.dataset.measure = String(measureIndex);
           measure.innerHTML = '<span class="string-line" data-string="3"></span><span class="string-line" data-string="2"></span><span class="string-line" data-string="1"></span>';
-          appendRepeatBar(measure, state.barlineKinds?.[`${rowIndex}:${column}`]);
+          appendBarline(measure, state.barlineKinds?.[`${rowIndex}:${column}`], column === 0 ? "row-start" : "internal");
 
           state.events.forEach((event, eventIndex) => {
             if (event.m !== measureIndex) return;
@@ -1541,7 +1604,11 @@
           });
 
           row.append(measure);
+          lastMeasure = measure;
           measureIndex += 1;
+        }
+        if (lastMeasure) {
+          appendBarline(lastMeasure, state.barlineKinds?.[`${rowIndex}:${rowCount}`], "row-end");
         }
         system.append(row);
 
