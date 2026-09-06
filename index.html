@@ -241,6 +241,21 @@
     .tempo-caption { display: block; margin-top: 0; color: var(--muted); font-family: system-ui, sans-serif; font-size: 10px; line-height: 1.2; }
     .tempo-slider { display: block; width: 100%; height: 14px; margin: 0; accent-color: var(--brown); }
 
+    .mix-control {
+      display: grid;
+      grid-template-columns: auto minmax(90px, 1fr) auto;
+      align-items: center;
+      gap: 7px;
+      margin-top: 3px;
+      padding-top: 3px;
+      border-top: 1px dashed rgba(178,153,123,.5);
+      font-family: system-ui, sans-serif;
+    }
+
+    .mix-label { color: var(--brown-dark); font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .mix-slider { width: 100%; height: 14px; margin: 0; accent-color: var(--blue); }
+    .mix-value { grid-column: 1 / -1; margin-top: -3px; color: var(--muted); font-size: 10px; text-align: center; }
+
     .notice {
       display: flex;
       gap: 10px;
@@ -333,6 +348,25 @@
     .position-text { margin: 4px 0 0; color: var(--muted); font-family: system-ui, sans-serif; font-size: 13px; }
     .technique-counts { color: var(--muted); font-family: system-ui, sans-serif; font-size: 11px; text-align: right; }
 
+    .playback-options { display: flex; align-items: flex-end; gap: 9px; }
+    .follow-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 32px;
+      padding: 4px 8px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fffdf8;
+      color: var(--brown-dark);
+      font-family: system-ui, sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .follow-toggle input { width: 16px; height: 16px; margin: 0; accent-color: var(--blue); }
+
     .score-frame {
       overflow-x: auto;
       overscroll-behavior-inline: contain;
@@ -388,10 +422,14 @@
       position: relative;
       display: grid;
       grid-template-columns: 38px 1fr;
-      grid-template-rows: 105px 25px;
-      min-height: 130px;
+      grid-template-rows: 105px;
+      min-height: 105px;
       margin-bottom: 0;
     }
+
+    .score-system.has-lyrics { grid-template-rows: 105px 25px; min-height: 130px; }
+    .score-system.has-vocal { grid-template-rows: 105px 50px; min-height: 155px; }
+    .score-system.has-lyrics.has-vocal { grid-template-rows: 105px 25px 50px; min-height: 180px; }
 
     .score-system:last-child { margin-bottom: 0; }
 
@@ -454,6 +492,94 @@
       line-height: 18px;
       white-space: pre;
     }
+
+    .vocal-label {
+      z-index: 3;
+      grid-column: 1;
+      align-self: center;
+      padding-right: 6px;
+      color: #725f4d;
+      font-size: 10px;
+      line-height: 1;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .vocal-track {
+      position: relative;
+      z-index: 3;
+      grid-column: 2;
+      display: grid;
+      min-width: 0;
+      height: 50px;
+    }
+
+    .vocal-measure { position: relative; min-width: 0; height: 50px; }
+
+    .vocal-note {
+      position: absolute;
+      z-index: 5;
+      top: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 18px;
+      height: 34px;
+      translate: -50% 0;
+      border-radius: 5px;
+      color: var(--vocal-color, #222);
+      background: #fffdfa;
+      font-family: Arial, sans-serif;
+      line-height: 1;
+      transition: color .15s ease, background .15s ease, box-shadow .15s ease;
+    }
+
+    .vocal-note-value {
+      position: relative;
+      display: block;
+      min-width: 15px;
+      height: 18px;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .vocal-note[data-duration="2"] .vocal-note-value::after,
+    .vocal-note[data-duration="1"] .vocal-note-value::after {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      border-top: 1.4px solid currentColor;
+      content: "";
+    }
+
+    .vocal-note[data-duration="1"] .vocal-note-value::before {
+      position: absolute;
+      right: 0;
+      bottom: 3px;
+      left: 0;
+      border-top: 1.4px solid currentColor;
+      content: "";
+    }
+
+    .vocal-note[data-kind="rest"] .vocal-note-value { font-size: 19px; font-weight: 700; }
+    .vocal-note[data-kind="interjection"] .vocal-note-value { font-family: "Yu Gothic", sans-serif; }
+    .vocal-string-mark { display: block; height: 10px; font-size: 10px; letter-spacing: 1px; line-height: 9px; }
+    .vocal-note.is-playing { color: white; background: var(--blue); box-shadow: 0 0 0 3px rgba(86,128,154,.18); }
+
+    .vocal-slur-layer {
+      position: absolute;
+      z-index: 4;
+      top: 2px;
+      left: 0;
+      width: 100%;
+      height: 16px;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .vocal-slur-layer path { fill: none; stroke: #222; stroke-width: 1.4; stroke-linecap: round; }
 
     .writing-layer-svg {
       position: absolute;
@@ -789,6 +915,9 @@
       .file-button { width: 100%; }
       .layer-card-head { align-items: flex-start; }
       .layer-help { max-width: 45%; text-align: right; }
+      .player-status { align-items: start; }
+      .playback-options { flex-direction: column; align-items: flex-end; gap: 4px; }
+      .follow-toggle { min-height: 30px; }
     }
 
     @media (min-width: 1024px) {
@@ -863,12 +992,18 @@
           <button class="step-button" id="tempo-plus" type="button" aria-label="テンポを5上げる">＋</button>
         </div>
         <input class="tempo-slider" id="tempo-slider" type="range" min="40" max="160" step="1" value="80" aria-label="テンポ">
+        <div class="mix-control hidden" id="mix-control" aria-label="三味線と唄の音量割合">
+          <span class="mix-label">三味線</span>
+          <input class="mix-slider" id="mix-slider" type="range" min="0" max="100" step="1" value="50" aria-label="三味線と唄の音量割合">
+          <span class="mix-label">唄</span>
+          <output class="mix-value" id="mix-value" for="mix-slider">三味線 50％・唄 50％</output>
+        </div>
       </section>
     </div>
 
     <div class="notice" role="note">
       <span class="notice-mark" aria-hidden="true">♩</span>
-      <span>調弦アプリの通常三味線音源で演奏します。「ス」「ハ」付きの譜面も判別しますが、専用音源を追加するまでは通常音で鳴ります。</span>
+      <span>三味線は調弦アプリの通常音源、唄の音程は仮音で演奏します。スラーは音を切らず、滑らかにつなぎます。</span>
     </div>
 
     <section aria-labelledby="score-heading">
@@ -877,9 +1012,12 @@
           <h2 id="score-heading">演奏位置</h2>
           <p class="position-text" id="position-text" aria-live="polite">先頭で停止中</p>
         </div>
-        <div class="technique-counts" id="technique-counts">通常音 69<br>ス 0・ハ 0</div>
+        <div class="playback-options">
+          <label class="follow-toggle"><input id="follow-toggle" type="checkbox">譜面を自動で追う</label>
+          <div class="technique-counts" id="technique-counts">通常音 69<br>ス 0・ハ 0</div>
+        </div>
       </div>
-      <div class="score-frame" id="score-frame" tabindex="0" aria-label="文化譜。横にスクロールできます">
+      <div class="score-frame" id="score-frame" tabindex="0" aria-label="絲庵譜。再生中は横方向と段方向へ自動追従できます">
         <div class="score-paper" id="score-paper"></div>
       </div>
       <div class="score-legend" aria-label="休符の見分け方">
@@ -900,7 +1038,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="./embedded-assets.js"></script>
   <script src="./sound-segments.js"></script>
   <script src="./tuning-data.js"></script>
   <script src="./audio-engine.js"></script>
@@ -909,8 +1046,9 @@
 
     /** @typedef {{m:number,p:number,d:number,n:Array<[number,string]>,technique?:string,x?:number}} DemoEvent */
     /** @typedef {{m:number,s:number,p:number,text:string}} ScoreMark */
+    /** @typedef {{id:string,m:number,s:number,p:number,d:number,v:string,kind:"pitch"|"rest"|"interjection",color:string,x:number}} VocalNote */
     /** @typedef {{id:string,name:string,visible:boolean,items:Array<Record<string,unknown>>}} OptionalLayer */
-    /** @typedef {{format?:string,score:{title?:string,tuning?:string,meter?:string,notes:Array<Record<string,unknown>>,layers?:Array<Record<string,unknown>>,lyrics?:string[],rows?:number,measuresPerRow?:number,rowMeasureCounts?:number[],annotationCoordVersion?:number}}} ScoreFile */
+    /** @typedef {{format?:string,score:{title?:string,tuning?:string,meter?:string,notes:Array<Record<string,unknown>>,vocalNotes?:Array<Record<string,unknown>>,vocalSlurs?:Array<Record<string,unknown>>,vocalVisible?:boolean,layers?:Array<Record<string,unknown>>,lyrics?:string[],rows?:number,measuresPerRow?:number,rowMeasureCounts?:number[],annotationCoordVersion?:number}}} ScoreFile */
 
     const TUNING_MODE_ALIASES = Object.freeze({
       "本調子": "hon",
@@ -1003,6 +1141,9 @@
       rowMeasureCounts: [6, 7, 7, 7],
       lyrics: DEMO_LYRICS,
       lyricsVisible: true,
+      vocalNotes: /** @type {VocalNote[]} */ ([]),
+      vocalSlurs: [],
+      vocalVisible: false,
       optionalLayers: /** @type {OptionalLayer[]} */ (DEMO_OPTIONAL_LAYERS.map((layer) => ({
         ...layer,
         items: layer.items.map((item) => ({ ...item }))
@@ -1014,13 +1155,25 @@
       currentIndex: -1,
       startAtMs: 0,
       pausedBeat: 0,
-      lastClickedIndex: -1,
+      currentVocalKey: "",
+      currentMeasureIndex: -1,
       soundEnabled: true,
+      balance: 50,
       tuningMaster: null,
+      audioContext: null,
+      masterGain: null,
+      shamisenGain: null,
+      vocalGain: null,
+      scheduledVocalNodes: [],
+      audioStartTime: 0,
       audioPreparing: false,
       playbackToken: 0,
       animationId: 0,
-      toastTimer: 0
+      toastTimer: 0,
+      tempoRestartTimer: 0,
+      followEnabled: window.matchMedia("(max-width: 719px)").matches,
+      lastFollowedRow: -1,
+      wakeLock: null
     };
 
     const els = {
@@ -1035,8 +1188,12 @@
       tempoValue: document.querySelector("#tempo-value"),
       tempoMinus: document.querySelector("#tempo-minus"),
       tempoPlus: document.querySelector("#tempo-plus"),
+      mixControl: document.querySelector("#mix-control"),
+      mixSlider: document.querySelector("#mix-slider"),
+      mixValue: document.querySelector("#mix-value"),
       positionText: document.querySelector("#position-text"),
       techniqueCounts: document.querySelector("#technique-counts"),
+      followToggle: document.querySelector("#follow-toggle"),
       optionalLayerCard: document.querySelector("#optional-layer-card"),
       layerOptions: document.querySelector("#layer-options"),
       scoreFrame: document.querySelector("#score-frame"),
@@ -1129,9 +1286,13 @@
     }
 
     function displayUnitsForMeasure(measureIndex) {
-      const notatedEnd = state.events
+      const shamisenEnd = state.events
         .filter((event) => event.m === measureIndex)
         .reduce((maximum, event) => Math.max(maximum, event.p + event.d), 0);
+      const vocalEnd = state.vocalNotes
+        .filter((note) => note.m === measureIndex)
+        .reduce((maximum, note) => Math.max(maximum, note.p + note.d), 0);
+      const notatedEnd = Math.max(shamisenEnd, vocalEnd);
       return Math.max(baseUnitsPerMeasure(), notatedEnd, 1);
     }
 
@@ -1151,9 +1312,24 @@
       return Math.max(.125, event.d / 4);
     }
 
+    function vocalNoteStartBeat(note) {
+      return measureStartBeat(note.m) + note.p / 4;
+    }
+
+    function vocalNoteDurationBeat(note) {
+      return Math.max(.125, note.d / 4);
+    }
+
     function playbackEndBeat() {
-      const last = state.events.at(-1);
-      return last ? eventStartBeat(last) + eventDurationBeat(last) : 0;
+      const shamisenEnd = state.events.reduce(
+        (maximum, event) => Math.max(maximum, eventStartBeat(event) + eventDurationBeat(event)),
+        0
+      );
+      const vocalEnd = state.vocalNotes.reduce(
+        (maximum, note) => Math.max(maximum, vocalNoteStartBeat(note) + vocalNoteDurationBeat(note)),
+        0
+      );
+      return Math.max(shamisenEnd, vocalEnd);
     }
 
     function noteCount() {
@@ -1161,7 +1337,15 @@
     }
 
     function measureCount() {
-      return state.events.length ? Math.max(...state.events.map((event) => event.m)) + 1 : 0;
+      const explicitCount = Array.isArray(state.rowMeasureCounts)
+        ? state.rowMeasureCounts.reduce((sum, count) => sum + (Number.isInteger(count) && count > 0 ? count : 0), 0)
+        : 0;
+      const indexes = [
+        ...state.events.map((event) => event.m),
+        ...state.vocalNotes.map((note) => note.m)
+      ].filter((value) => Number.isInteger(value) && value >= 0);
+      const contentCount = indexes.length ? Math.max(...indexes) + 1 : 0;
+      return Math.max(explicitCount, contentCount);
     }
 
     function techniqueCount(name) {
@@ -1174,15 +1358,26 @@
       els.meterChip.textContent = meterLabel(state.meter || "2/4");
       els.measureChip.textContent = `${measureCount()}小節`;
       els.techniqueCounts.innerHTML = `通常音 ${Math.max(0, noteCount() - techniqueCount("ス") - techniqueCount("ハ"))}<br>ス ${techniqueCount("ス")}・ハ ${techniqueCount("ハ")}`;
+      els.mixControl.classList.toggle("hidden", !hasVocalNotes());
+      els.mixSlider.value = String(state.balance);
+      els.mixValue.textContent = `三味線 ${100 - state.balance}％・唄 ${state.balance}％`;
+      els.followToggle.checked = state.followEnabled;
     }
 
     function hasLyrics() {
       return Array.isArray(state.lyrics) && state.lyrics.some((line) => typeof line === "string" && line.trim().length > 0);
     }
 
+    function hasVocalNotes() {
+      return Array.isArray(state.vocalNotes) && state.vocalNotes.length > 0;
+    }
+
     function renderLayerControls() {
       els.layerOptions.replaceChildren();
       const controls = [];
+      if (hasVocalNotes()) {
+        controls.push({ kind: "vocal", id: "vocal", name: "唄の音程", visible: state.vocalVisible });
+      }
       if (hasLyrics()) {
         controls.push({ kind: "lyrics", id: "lyrics", name: "歌詞", visible: state.lyricsVisible });
       }
@@ -1211,7 +1406,9 @@
     }
 
     function setOptionalLayerVisibility(kind, id, visible) {
-      if (kind === "lyrics") {
+      if (kind === "vocal") {
+        state.vocalVisible = visible;
+      } else if (kind === "lyrics") {
         state.lyricsVisible = visible;
       } else {
         const layer = state.optionalLayers.find((candidate) => candidate.id === id);
@@ -1219,9 +1416,11 @@
         layer.visible = visible;
       }
       renderScore();
-      const name = kind === "lyrics"
-        ? "歌詞"
-        : state.optionalLayers.find((candidate) => candidate.id === id)?.name || "書き込み";
+      const name = kind === "vocal"
+        ? "唄の音程"
+        : kind === "lyrics"
+          ? "歌詞"
+          : state.optionalLayers.find((candidate) => candidate.id === id)?.name || "書き込み";
       showToast(`${name}を${visible ? "表示" : "非表示に"}しました。`);
     }
 
@@ -1239,10 +1438,106 @@
 
     function minimumWidthForMeasure(measureIndex) {
       const events = state.events.filter((event) => event.m === measureIndex);
-      const positions = new Set(events.map((event) => event.p));
-      const hasTwoDigitValue = events.some((event) => event.n.some(([, value]) => String(value).length >= 2));
+      const vocalNotes = state.vocalNotes.filter((note) => note.m === measureIndex);
+      const positions = new Set([...events.map((event) => event.p), ...vocalNotes.map((note) => note.p)]);
+      const hasTwoDigitValue = events.some((event) => event.n.some(([, value]) => String(value).length >= 2))
+        || vocalNotes.some((note) => String(note.v).length >= 2);
       const widthPerPosition = hasTwoDigitValue ? 30 : 26;
       return Math.max(106, positions.size * widthPerPosition);
+    }
+
+    function vocalStringMark(stringNumber) {
+      if (stringNumber === 1) return "•";
+      if (stringNumber === 2) return "••";
+      return "";
+    }
+
+    function vocalLeft(note) {
+      const anchor = note.anchor && state.events.find((event) => event.m === note.anchor.m && event.p === note.anchor.p);
+      if (anchor) {
+        const anchorPercent = Number.parseFloat(symbolLeft(anchor));
+        const offsetPercent = finiteNumber(note.anchorOffset) / displayUnitsForMeasure(anchor.m) * 100;
+        return `${Math.min(97, Math.max(3, anchorPercent + offsetPercent))}%`;
+      }
+      const measureUnits = displayUnitsForMeasure(note.m);
+      return `${Math.min(97, Math.max(3, (note.p + .5) / measureUnits * 100))}%`;
+    }
+
+    function appendVocalNote(measure, note) {
+      const item = document.createElement("span");
+      item.className = "vocal-note";
+      item.dataset.vocalId = note.id;
+      item.dataset.duration = String(note.d);
+      item.dataset.kind = note.kind;
+      item.style.left = `calc(${vocalLeft(note)} + ${finiteNumber(note.x)}px)`;
+      item.style.setProperty("--vocal-color", note.color);
+      const label = note.kind === "rest" ? "唄の休符" : note.kind === "interjection" ? "唄の合いの手" : "唄の音程";
+      item.setAttribute("aria-label", `${label} ${note.v}`);
+
+      const value = document.createElement("span");
+      value.className = "vocal-note-value";
+      value.textContent = note.v;
+      const stringMark = document.createElement("span");
+      stringMark.className = "vocal-string-mark";
+      stringMark.textContent = note.kind === "pitch" ? vocalStringMark(note.s) : "";
+      item.append(value, stringMark);
+      measure.append(item);
+    }
+
+    function renderVocalSlurs() {
+      els.scorePaper.querySelectorAll(".vocal-slur-layer").forEach((element) => element.remove());
+      if (!state.vocalVisible || !state.vocalSlurs.length) return;
+
+      const tracks = Array.from(els.scorePaper.querySelectorAll(".vocal-track"));
+      const trackIndex = new Map(tracks.map((track, index) => [track, index]));
+      const noteElements = new Map(
+        Array.from(els.scorePaper.querySelectorAll("[data-vocal-id]"))
+          .map((element) => [element.dataset.vocalId, element])
+      );
+      const pathsByTrack = tracks.map(() => []);
+
+      state.vocalSlurs.forEach((slur) => {
+        let start = noteElements.get(slur.startId);
+        let end = noteElements.get(slur.endId);
+        if (!(start instanceof HTMLElement) || !(end instanceof HTMLElement)) return;
+        let startTrack = start.closest(".vocal-track");
+        let endTrack = end.closest(".vocal-track");
+        let startRow = trackIndex.get(startTrack);
+        let endRow = trackIndex.get(endTrack);
+        if (!Number.isInteger(startRow) || !Number.isInteger(endRow)) return;
+
+        if (startRow > endRow || (startRow === endRow && start.getBoundingClientRect().left > end.getBoundingClientRect().left)) {
+          [start, end] = [end, start];
+          [startTrack, endTrack] = [endTrack, startTrack];
+          [startRow, endRow] = [endRow, startRow];
+        }
+
+        for (let row = startRow; row <= endRow; row += 1) {
+          const track = tracks[row];
+          const trackRect = track.getBoundingClientRect();
+          if (!trackRect.width) continue;
+          const startRect = start.getBoundingClientRect();
+          const endRect = end.getBoundingClientRect();
+          const x1 = row === startRow ? startRect.left + startRect.width / 2 - trackRect.left : 2;
+          const x2 = row === endRow ? endRect.left + endRect.width / 2 - trackRect.left : trackRect.width - 2;
+          if (x2 - x1 >= 8) pathsByTrack[row].push({ x1, x2 });
+        }
+      });
+
+      tracks.forEach((track, row) => {
+        const trackRect = track.getBoundingClientRect();
+        if (!trackRect.width || !pathsByTrack[row].length) return;
+        const svg = svgElement("svg", {
+          class: "vocal-slur-layer",
+          viewBox: `0 0 ${trackRect.width} 16`,
+          preserveAspectRatio: "none",
+          "aria-hidden": "true"
+        });
+        pathsByTrack[row].forEach(({ x1, x2 }) => {
+          svg.append(svgElement("path", { d: `M ${x1.toFixed(2)} 13 Q ${((x1 + x2) / 2).toFixed(2)} 1 ${x2.toFixed(2)} 13` }));
+        });
+        track.append(svg);
+      });
     }
 
     function marksForEvent(event) {
@@ -1535,8 +1830,14 @@
 
       let measureIndex = 0;
       rowCounts.forEach((rowCount, rowIndex) => {
+        const rowStartMeasure = measureIndex;
+        const showLyrics = state.lyricsVisible && hasLyrics();
+        const showVocal = state.vocalVisible && hasVocalNotes();
         const system = document.createElement("div");
         system.className = "score-system";
+        system.dataset.rowIndex = String(rowIndex);
+        system.classList.toggle("has-lyrics", showLyrics);
+        system.classList.toggle("has-vocal", showVocal);
 
         const labels = document.createElement("div");
         labels.className = "string-labels";
@@ -1612,7 +1913,7 @@
         }
         system.append(row);
 
-        if (state.lyricsVisible && hasLyrics()) {
+        if (showLyrics) {
           const lyricLabel = document.createElement("span");
           lyricLabel.className = "lyrics-label";
           lyricLabel.textContent = "歌詞";
@@ -1621,36 +1922,97 @@
           lyricLine.textContent = typeof state.lyrics[rowIndex] === "string" ? state.lyrics[rowIndex] : "";
           system.append(lyricLabel, lyricLine);
         }
+
+        if (showVocal) {
+          const vocalGridRow = showLyrics ? "3" : "2";
+          const vocalLabel = document.createElement("span");
+          vocalLabel.className = "vocal-label";
+          vocalLabel.style.gridRow = vocalGridRow;
+          vocalLabel.textContent = "唄";
+
+          const vocalTrack = document.createElement("div");
+          vocalTrack.className = "vocal-track";
+          vocalTrack.dataset.row = String(rowIndex);
+          vocalTrack.style.gridRow = vocalGridRow;
+          vocalTrack.style.gridTemplateColumns = columnWidths.map((width) => `minmax(${width}px, 1fr)`).join(" ");
+          for (let column = 0; column < rowCount; column += 1) {
+            const vocalMeasure = document.createElement("div");
+            vocalMeasure.className = "vocal-measure";
+            const vocalMeasureIndex = rowStartMeasure + column;
+            vocalMeasure.dataset.measure = String(vocalMeasureIndex);
+            state.vocalNotes
+              .filter((note) => note.m === vocalMeasureIndex)
+              .forEach((note) => appendVocalNote(vocalMeasure, note));
+            vocalTrack.append(vocalMeasure);
+          }
+          system.append(vocalLabel, vocalTrack);
+        }
         els.scorePaper.append(system);
       });
 
       alignLyricLines();
+      renderVocalSlurs();
       renderWritingLayers();
-      updateHighlight(-1, false);
+      const visibleBeat = state.isPlaying ? currentBeat() : state.pausedBeat;
+      updateHighlight(findEventIndex(visibleBeat), false, visibleBeat);
     }
 
-    function updateHighlight(index, shouldScroll = true) {
-      document.querySelectorAll(".is-playing").forEach((element) => element.classList.remove("is-playing"));
-      document.querySelectorAll(".measure.is-current").forEach((element) => element.classList.remove("is-current"));
+    function measureIndexForBeat(beat) {
+      const total = measureCount();
+      let start = 0;
+      for (let index = 0; index < total; index += 1) {
+        const end = start + displayUnitsForMeasure(index) / 4;
+        if (beat < end - .001 || index === total - 1) return index;
+        start = end;
+      }
+      return 0;
+    }
+
+    function scrollToCurrentSystem(measure, behavior = "smooth") {
+      if (!(measure instanceof HTMLElement)) return;
+      const row = measure.closest(".score-row");
+      const left = (row instanceof HTMLElement ? row.offsetLeft : 0) + measure.offsetLeft - els.scoreFrame.clientWidth * .38;
+      els.scoreFrame.scrollTo({ left: Math.max(0, left), behavior });
+
+      if (!state.followEnabled) return;
+      const system = measure.closest(".score-system");
+      if (!(system instanceof HTMLElement)) return;
+      const rowIndex = Number(system.dataset.rowIndex);
+      if (rowIndex === state.lastFollowedRow) return;
+      state.lastFollowedRow = rowIndex;
+      const top = window.scrollY + system.getBoundingClientRect().top - 76;
+      window.scrollTo({ top: Math.max(0, top), behavior });
+    }
+
+    function updateHighlight(index, shouldScroll = true, beat = state.pausedBeat) {
+      els.scorePaper.querySelectorAll(".is-playing").forEach((element) => element.classList.remove("is-playing"));
+      els.scorePaper.querySelectorAll(".measure.is-current").forEach((element) => element.classList.remove("is-current"));
 
       const event = state.events[index];
-      if (!event) {
-        els.positionText.textContent = state.pausedBeat > 0 ? "一時停止中" : "先頭で停止中";
+      if (event && beat >= eventStartBeat(event) - .001 && beat < eventStartBeat(event) + eventDurationBeat(event) - .001) {
+        els.scorePaper.querySelectorAll(`[data-event-index="${index}"]`).forEach((element) => element.classList.add("is-playing"));
+      }
+      state.vocalNotes.forEach((note) => {
+        const start = vocalNoteStartBeat(note);
+        if (beat < start - .001 || beat >= start + vocalNoteDurationBeat(note) - .001) return;
+        els.scorePaper.querySelectorAll(".vocal-note").forEach((element) => {
+          if (element instanceof HTMLElement && element.dataset.vocalId === note.id) element.classList.add("is-playing");
+        });
+      });
+
+      if (!state.isPlaying && beat <= .001 && index < 0) {
+        els.positionText.textContent = "先頭で停止中";
         return;
       }
 
-      document.querySelectorAll(`[data-event-index="${index}"]`).forEach((element) => element.classList.add("is-playing"));
-      const measure = document.querySelector(`.measure[data-measure="${event.m}"]`);
+      const measureIndex = measureIndexForBeat(Math.max(0, beat));
+      const measure = els.scorePaper.querySelector(`.measure[data-measure="${measureIndex}"]`);
       measure?.classList.add("is-current");
-      const beat = event.p / 4 + 1;
-      const technique = event.technique ? `・${event.technique}` : "";
-      els.positionText.textContent = `${event.m + 1}小節目・${Number.isInteger(beat) ? beat : beat.toFixed(1)}拍目${technique}`;
+      const beatWithinMeasure = Math.max(0, beat - measureStartBeat(measureIndex)) + 1;
+      const technique = event?.technique && event.m === measureIndex ? `・${event.technique}` : "";
+      els.positionText.textContent = `${measureIndex + 1}小節目・${Number.isInteger(beatWithinMeasure) ? beatWithinMeasure : beatWithinMeasure.toFixed(1)}拍目${technique}`;
 
-      if (shouldScroll && measure instanceof HTMLElement) {
-        const row = measure.closest(".score-row");
-        const left = (row instanceof HTMLElement ? row.offsetLeft : 0) + measure.offsetLeft - els.scoreFrame.clientWidth * .38;
-        els.scoreFrame.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
-      }
+      if (shouldScroll && measure instanceof HTMLElement) scrollToCurrentSystem(measure);
     }
 
     function setPlayingUi(isPlaying) {
@@ -1660,33 +2022,177 @@
       els.playButton.setAttribute("aria-label", isPlaying ? "一時停止" : "再生する");
     }
 
-    async function ensureShamisenAudio() {
+    async function ensurePlaybackAudio() {
       if (!state.soundEnabled) return;
       if (!window.ShianAudioEngine || !window.ShianTuningMasterReady) {
-        throw new Error("三味線音源の再生機能を読み込めませんでした。");
+        throw new Error("音源の再生機能を読み込めませんでした。");
       }
       state.tuningMaster = await window.ShianTuningMasterReady;
+      state.audioContext = await window.ShianAudioEngine.resume();
       await window.ShianAudioEngine.load();
+      if (!state.masterGain) {
+        state.masterGain = state.audioContext.createGain();
+        state.shamisenGain = state.audioContext.createGain();
+        state.vocalGain = state.audioContext.createGain();
+        state.shamisenGain.connect(state.masterGain);
+        state.vocalGain.connect(state.masterGain);
+        state.masterGain.connect(state.audioContext.destination);
+      }
+      updateMix(true);
     }
 
-    async function playShamisenEvent(event, playbackToken) {
-      if (!state.soundEnabled || playbackToken !== state.playbackToken || !state.isPlaying) return;
-      const notes = event.n.filter(([stringNumber]) => [1, 2, 3].includes(stringNumber));
-      window.ShianAudioEngine?.stopAll(.012);
-      if (!notes.length) return;
+    function updateMix(immediate = false) {
+      if (!state.audioContext || !state.masterGain || !state.shamisenGain || !state.vocalGain) return;
+      const now = state.audioContext.currentTime;
+      const constant = immediate ? .001 : .02;
+      state.masterGain.gain.setTargetAtTime(state.soundEnabled ? .92 : 0, now, constant);
+      state.shamisenGain.gain.setTargetAtTime((100 - state.balance) / 100, now, constant);
+      state.vocalGain.gain.setTargetAtTime(state.balance / 100, now, constant);
+    }
 
-      const volume = notes.length > 1 ? .52 : .78;
-      const frequencies = notes.map(([stringNumber, value]) => frequencyForNote(stringNumber, value));
-      await Promise.all(frequencies.map((frequency) => window.ShianAudioEngine.playFrequency(frequency, {
-        exclusive: false,
-        volume
-      })));
+    function trackVocalNode(node) {
+      state.scheduledVocalNodes.push(node);
+      return node;
+    }
+
+    function stopScheduledAudio() {
+      window.ShianAudioEngine?.stopAll(.012);
+      state.scheduledVocalNodes.forEach((node) => {
+        try { node.stop(); } catch (_) {}
+        try { node.disconnect(); } catch (_) {}
+      });
+      state.scheduledVocalNodes = [];
+    }
+
+    function scheduleVocalSingle(note, secondsPerBeat) {
+      if (!state.audioContext || !state.vocalGain || note.kind !== "pitch") return;
+      const frequency = frequencyForNote(note.s, note.v);
+      const when = state.audioStartTime + vocalNoteStartBeat(note) * secondsPerBeat;
+      const durationSeconds = vocalNoteDurationBeat(note) * secondsPerBeat;
+      const end = when + Math.max(.1, durationSeconds * .94);
+      const attack = Math.min(.045, durationSeconds * .2);
+      const release = Math.min(.09, durationSeconds * .28);
+      const gain = state.audioContext.createGain();
+      gain.gain.setValueAtTime(.0001, when);
+      gain.gain.linearRampToValueAtTime(.5, when + attack);
+      gain.gain.setValueAtTime(.5, Math.max(when + attack, end - release));
+      gain.gain.linearRampToValueAtTime(.0001, end);
+      [{ ratio: 1, level: 1 }, { ratio: 2, level: .055 }].forEach((partial) => {
+        const oscillator = state.audioContext.createOscillator();
+        const partialGain = state.audioContext.createGain();
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(frequency * partial.ratio, when);
+        partialGain.gain.value = partial.level;
+        oscillator.connect(partialGain).connect(gain);
+        oscillator.start(when);
+        oscillator.stop(end + .03);
+        trackVocalNode(oscillator);
+        trackVocalNode(partialGain);
+      });
+      gain.connect(state.vocalGain);
+      trackVocalNode(gain);
+    }
+
+    function buildVocalPlan() {
+      const allOrdered = state.vocalNotes
+        .map((note) => ({ ...note, absoluteBeat: vocalNoteStartBeat(note) }))
+        .sort((a, b) => a.absoluteBeat - b.absoluteBeat);
+      const byId = new Map(allOrdered.map((note) => [note.id, note]));
+      const consumed = new Set();
+      const phrases = [];
+      state.vocalSlurs.forEach((slur) => {
+        const start = byId.get(slur.startId);
+        const end = byId.get(slur.endId);
+        if (!start || !end) return;
+        const low = Math.min(start.absoluteBeat, end.absoluteBeat);
+        const high = Math.max(start.absoluteBeat, end.absoluteBeat);
+        let part = [];
+        const flush = () => {
+          if (part.length > 1) {
+            phrases.push(part);
+            part.forEach((note) => consumed.add(note.id));
+          }
+          part = [];
+        };
+        allOrdered.filter((note) => note.absoluteBeat >= low && note.absoluteBeat <= high).forEach((note) => {
+          if (note.kind !== "pitch") flush();
+          else part.push(note);
+        });
+        flush();
+      });
+      return {
+        phrases,
+        singles: allOrdered.filter((note) => note.kind === "pitch" && !consumed.has(note.id))
+      };
+    }
+
+    function scheduleVocalLegato(notes, secondsPerBeat) {
+      if (!state.audioContext || !state.vocalGain || notes.length < 2) return;
+      const frequencies = notes.map((note) => frequencyForNote(note.s, note.v));
+      const start = state.audioStartTime + notes[0].absoluteBeat * secondsPerBeat;
+      const last = notes[notes.length - 1];
+      const end = state.audioStartTime + (last.absoluteBeat + vocalNoteDurationBeat(last)) * secondsPerBeat;
+      const attack = Math.min(.045, (end - start) * .12);
+      const release = Math.min(.09, (end - start) * .18);
+      const gain = state.audioContext.createGain();
+      gain.gain.setValueAtTime(.0001, start);
+      gain.gain.linearRampToValueAtTime(.5, start + attack);
+      gain.gain.setValueAtTime(.5, Math.max(start + attack, end - release));
+      gain.gain.linearRampToValueAtTime(.0001, end);
+      [{ ratio: 1, level: 1 }, { ratio: 2, level: .055 }].forEach((partial) => {
+        const oscillator = state.audioContext.createOscillator();
+        const partialGain = state.audioContext.createGain();
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(frequencies[0] * partial.ratio, start);
+        notes.slice(1).forEach((note, index) => {
+          const changeAt = state.audioStartTime + note.absoluteBeat * secondsPerBeat;
+          const glide = Math.min(.05, secondsPerBeat * .3);
+          oscillator.frequency.setValueAtTime(frequencies[index] * partial.ratio, Math.max(start, changeAt - glide / 2));
+          oscillator.frequency.linearRampToValueAtTime(frequencies[index + 1] * partial.ratio, changeAt + glide / 2);
+        });
+        partialGain.gain.value = partial.level;
+        oscillator.connect(partialGain).connect(gain);
+        oscillator.start(start);
+        oscillator.stop(end + .03);
+        trackVocalNode(oscillator);
+        trackVocalNode(partialGain);
+      });
+      gain.connect(state.vocalGain);
+      trackVocalNode(gain);
+    }
+
+    function schedulePlaybackAudio(fromBeat, leadSeconds = .08) {
+      if (!state.soundEnabled || !state.audioContext || !state.shamisenGain) return;
+      const secondsPerBeat = 60 / state.bpm;
+      state.audioStartTime = state.audioContext.currentTime + leadSeconds - fromBeat * secondsPerBeat;
+      state.events.filter((event) => eventStartBeat(event) >= fromBeat - .001).forEach((event) => {
+        const notes = event.n.filter(([stringNumber]) => [1, 2, 3].includes(stringNumber));
+        const when = state.audioStartTime + eventStartBeat(event) * secondsPerBeat;
+        const delay = Math.max(0, when - state.audioContext.currentTime);
+        const volume = notes.length > 1 ? .62 : .88;
+        notes.forEach(([stringNumber, value]) => {
+          window.ShianAudioEngine.playFrequency(frequencyForNote(stringNumber, value), {
+            exclusive: false,
+            delay,
+            volume,
+            destination: state.shamisenGain
+          }).catch((error) => console.error(error));
+        });
+      });
+      const vocalPlan = buildVocalPlan();
+      vocalPlan.phrases.forEach((phrase) => {
+        const remaining = phrase.filter((note) => note.absoluteBeat >= fromBeat - .001);
+        if (remaining.length > 1) scheduleVocalLegato(remaining, secondsPerBeat);
+        else if (remaining.length === 1) scheduleVocalSingle(remaining[0], secondsPerBeat);
+      });
+      vocalPlan.singles.filter((note) => note.absoluteBeat >= fromBeat - .001)
+        .forEach((note) => scheduleVocalSingle(note, secondsPerBeat));
     }
 
     function currentBeat(nowMs = performance.now()) {
       if (!state.isPlaying) return state.pausedBeat;
       const secondsPerBeat = 60 / state.bpm;
-      return state.pausedBeat + (nowMs - state.startAtMs) / 1000 / secondsPerBeat;
+      return state.pausedBeat + Math.max(0, nowMs - state.startAtMs) / 1000 / secondsPerBeat;
     }
 
     function findEventIndex(beat) {
@@ -1708,25 +2214,42 @@
       }
 
       const index = findEventIndex(beat);
-      if (index !== state.currentIndex) {
+      const measureIndex = measureIndexForBeat(beat);
+      const vocalKey = state.vocalNotes
+        .filter((note) => beat >= vocalNoteStartBeat(note) - .001 && beat < vocalNoteStartBeat(note) + vocalNoteDurationBeat(note) - .001)
+        .map((note) => note.id)
+        .join("|");
+      if (index !== state.currentIndex || vocalKey !== state.currentVocalKey || measureIndex !== state.currentMeasureIndex) {
         state.currentIndex = index;
-        updateHighlight(index);
-        if (index !== state.lastClickedIndex && state.events[index]) {
-          const playbackToken = state.playbackToken;
-          void playShamisenEvent(state.events[index], playbackToken).catch((error) => {
-            if (playbackToken !== state.playbackToken) return;
-            console.error(error);
-            stopPlayback(false);
-            showToast(error instanceof Error ? error.message : "三味線音を再生できませんでした。");
-          });
-          state.lastClickedIndex = index;
-        }
+        state.currentVocalKey = vocalKey;
+        state.currentMeasureIndex = measureIndex;
+        updateHighlight(index, true, beat);
       }
       state.animationId = requestAnimationFrame(animationTick);
     }
 
+    async function requestWakeLock() {
+      if (!state.followEnabled || !navigator.wakeLock || state.wakeLock) return;
+      try {
+        state.wakeLock = await navigator.wakeLock.request("screen");
+        state.wakeLock.addEventListener("release", () => { state.wakeLock = null; }, { once: true });
+      } catch (_) {}
+    }
+
+    async function releaseWakeLock() {
+      const lock = state.wakeLock;
+      state.wakeLock = null;
+      if (lock) {
+        try { await lock.release(); } catch (_) {}
+      }
+    }
+
     async function togglePlayback() {
-      if (!state.events.length) {
+      window.clearTimeout(state.tempoRestartTimer);
+      state.tempoRestartTimer = 0;
+      const hasPlayableSound = state.events.some((event) => event.n.some(([stringNumber]) => stringNumber > 0))
+        || state.vocalNotes.some((note) => note.kind === "pitch");
+      if (!hasPlayableSound) {
         showToast("再生できる音符がありません。");
         return;
       }
@@ -1734,8 +2257,9 @@
         state.pausedBeat = currentBeat();
         cancelAnimationFrame(state.animationId);
         state.playbackToken += 1;
-        window.ShianAudioEngine?.stopAll();
+        stopScheduledAudio();
         setPlayingUi(false);
+        void releaseWakeLock();
         els.positionText.textContent = "一時停止中";
         return;
       }
@@ -1746,10 +2270,7 @@
         els.playButton.disabled = true;
         els.playButton.textContent = "音源を準備中…";
         try {
-          const resumePromise = window.ShianAudioEngine?.resume();
-          await resumePromise;
-          await new Promise((resolve) => requestAnimationFrame(resolve));
-          await ensureShamisenAudio();
+          await ensurePlaybackAudio();
         } catch (error) {
           console.error(error);
           showToast(error instanceof Error ? error.message : "三味線音源を準備できませんでした。");
@@ -1761,24 +2282,51 @@
         }
       }
       if (state.pausedBeat >= playbackEndBeat()) state.pausedBeat = 0;
-      state.startAtMs = performance.now();
+      const leadSeconds = state.soundEnabled ? .08 : 0;
+      if (state.soundEnabled) {
+        try {
+          schedulePlaybackAudio(state.pausedBeat, leadSeconds);
+        } catch (error) {
+          console.error(error);
+          stopScheduledAudio();
+          showToast(error instanceof Error ? error.message : "演奏音を準備できませんでした。");
+          return;
+        }
+      }
+      state.startAtMs = performance.now() + leadSeconds * 1000;
       state.currentIndex = -1;
-      state.lastClickedIndex = -1;
+      state.currentVocalKey = "";
+      state.currentMeasureIndex = -1;
       state.playbackToken += 1;
       setPlayingUi(true);
+      void requestWakeLock();
       state.animationId = requestAnimationFrame(animationTick);
     }
 
     function stopPlayback(resetScroll = false) {
+      window.clearTimeout(state.tempoRestartTimer);
+      state.tempoRestartTimer = 0;
       cancelAnimationFrame(state.animationId);
       state.pausedBeat = 0;
       state.currentIndex = -1;
-      state.lastClickedIndex = -1;
+      state.currentVocalKey = "";
+      state.currentMeasureIndex = -1;
+      state.lastFollowedRow = -1;
       state.playbackToken += 1;
-      window.ShianAudioEngine?.stopAll();
+      stopScheduledAudio();
       setPlayingUi(false);
-      updateHighlight(-1, false);
-      if (resetScroll) els.scoreFrame.scrollTo({ left: 0, behavior: "smooth" });
+      void releaseWakeLock();
+      updateHighlight(-1, false, 0);
+      if (resetScroll) {
+        els.scoreFrame.scrollTo({ left: 0, behavior: "smooth" });
+        if (state.followEnabled) {
+          const firstSystem = els.scorePaper.querySelector(".score-system");
+          if (firstSystem instanceof HTMLElement) {
+            const top = window.scrollY + firstSystem.getBoundingClientRect().top - 76;
+            window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+          }
+        }
+      }
     }
 
     function setTempo(value) {
@@ -1787,10 +2335,15 @@
       const beat = currentBeat();
       state.bpm = newBpm;
       state.pausedBeat = beat;
-      state.startAtMs = performance.now();
       els.tempoSlider.value = String(newBpm);
       els.tempoValue.textContent = `♩＝${newBpm}`;
-      if (wasPlaying) state.lastClickedIndex = state.currentIndex;
+      if (wasPlaying) {
+        cancelAnimationFrame(state.animationId);
+        stopScheduledAudio();
+        setPlayingUi(false);
+        window.clearTimeout(state.tempoRestartTimer);
+        state.tempoRestartTimer = window.setTimeout(() => { void togglePlayback(); }, 120);
+      }
     }
 
     function setNumber(value) {
@@ -1825,6 +2378,66 @@
       return score.lyrics.map((line) => typeof line === "string" ? line : "");
     }
 
+    function scoreVocalNotes(score) {
+      if (!Array.isArray(score.vocalNotes)) return [];
+      const usedIds = new Set();
+      return score.vocalNotes.map((note, index) => {
+        if (!note || !Number.isInteger(note.m) || note.m < 0 || !Number.isFinite(note.p) || note.p < 0 || ![1, 2, 4].includes(note.d)) {
+          throw new Error(`唄の音程 ${index + 1}件目の位置または長さが不正です。`);
+        }
+        const kind = ["pitch", "rest", "interjection"].includes(note.kind) ? note.kind : "pitch";
+        const stringNumber = [1, 2, 3].includes(note.s) ? note.s : 3;
+        const value = typeof note.v === "string" || typeof note.v === "number" ? String(note.v) : "";
+        if (kind === "pitch") {
+          try {
+            notationSemitones(value);
+          } catch (error) {
+            const reason = error instanceof Error ? error.message : "再生できない唄の音程です。";
+            throw new Error(`唄の音程 ${index + 1}件目: ${reason}`);
+          }
+        }
+        const baseId = typeof note.id === "string" && note.id.trim() ? note.id.trim() : `vocal-note-${index + 1}`;
+        let id = baseId;
+        let suffix = 2;
+        while (usedIds.has(id)) {
+          id = `${baseId}-${suffix}`;
+          suffix += 1;
+        }
+        usedIds.add(id);
+        return {
+          id,
+          m: note.m,
+          p: Number(note.p),
+          v: value || (kind === "rest" ? "・" : ""),
+          s: stringNumber,
+          d: note.d,
+          x: finiteNumber(note.x),
+          kind,
+          color: kind === "pitch" && typeof note.color === "string" && /^#[0-9a-f]{6}$/i.test(note.color) ? note.color : "#222222",
+          anchor: note.anchor && Number.isInteger(note.anchor.m) && Number.isFinite(note.anchor.p)
+            ? { m: note.anchor.m, p: Number(note.anchor.p) }
+            : null,
+          anchorOffset: finiteNumber(note.anchorOffset)
+        };
+      }).sort((a, b) => a.m - b.m || a.p - b.p);
+    }
+
+    function scoreVocalSlurs(score, vocalNotes) {
+      if (!Array.isArray(score.vocalSlurs)) return [];
+      const ids = new Set(vocalNotes.map((note) => note.id));
+      const used = new Set();
+      return score.vocalSlurs.flatMap((slur, index) => {
+        if (!slur || typeof slur !== "object") return [];
+        const startId = String(slur.startId || "");
+        const endId = String(slur.endId || "");
+        if (!ids.has(startId) || !ids.has(endId) || startId === endId) return [];
+        const key = `${startId}:${endId}`;
+        if (used.has(key)) return [];
+        used.add(key);
+        return [{ id: String(slur.id || `vocal-slur-${index + 1}`), startId, endId }];
+      });
+    }
+
     function scoreOptionalLayers(score) {
       if (!Array.isArray(score.layers)) return [];
       const usedIds = new Set();
@@ -1855,6 +2468,8 @@
       const score = data.score;
       const marks = scoreMarks(score);
       const lyrics = scoreLyrics(score);
+      const vocalNotes = scoreVocalNotes(score);
+      const vocalSlurs = scoreVocalSlurs(score, vocalNotes);
       const optionalLayers = scoreOptionalLayers(score);
       const techniques = new Map();
       marks.forEach((mark) => {
@@ -1885,7 +2500,7 @@
       const events = Array.from(groups.values())
         .map((event) => ({ ...event, technique: techniques.get(`${event.m}:${event.p}`) }))
         .sort((a, b) => a.m - b.m || a.p - b.p);
-      if (!events.length) throw new Error("再生できる音符または休符がありません。");
+      if (!events.length && !vocalNotes.length) throw new Error("再生できる音符または休符がありません。");
 
       return {
         title: typeof score.title === "string" ? score.title : "名称未設定",
@@ -1899,6 +2514,9 @@
         rowMeasureCounts: Array.isArray(score.rowMeasureCounts) ? score.rowMeasureCounts : [],
         lyrics,
         lyricsVisible: lyrics.some((line) => line.trim().length > 0),
+        vocalNotes,
+        vocalSlurs,
+        vocalVisible: vocalNotes.length > 0 && score.vocalVisible !== false,
         optionalLayers,
         annotationCoordVersion: Number.isFinite(score.annotationCoordVersion) ? Number(score.annotationCoordVersion) : 1
       };
@@ -1943,6 +2561,24 @@
     els.tempoSlider.addEventListener("input", () => setTempo(Number(els.tempoSlider.value)));
     els.tempoMinus.addEventListener("click", () => setTempo(state.bpm - 5));
     els.tempoPlus.addEventListener("click", () => setTempo(state.bpm + 5));
+    els.mixSlider.addEventListener("input", () => {
+      state.balance = Math.max(0, Math.min(100, Math.round(Number(els.mixSlider.value))));
+      els.mixValue.textContent = `三味線 ${100 - state.balance}％・唄 ${state.balance}％`;
+      updateMix();
+    });
+    els.followToggle.addEventListener("change", () => {
+      state.followEnabled = els.followToggle.checked;
+      state.lastFollowedRow = -1;
+      if (state.followEnabled) {
+        const measureIndex = measureIndexForBeat(currentBeat());
+        const measure = els.scorePaper.querySelector(`.measure[data-measure="${measureIndex}"]`);
+        if (measure instanceof HTMLElement) scrollToCurrentSystem(measure);
+        if (state.isPlaying) void requestWakeLock();
+      } else {
+        void releaseWakeLock();
+      }
+      showToast(state.followEnabled ? "演奏に合わせて譜面を自動で送ります。" : "譜面の自動送りを停止しました。");
+    });
     els.layerOptions.addEventListener("change", (event) => {
       const input = event.target;
       if (!(input instanceof HTMLInputElement) || input.type !== "checkbox") return;
@@ -1950,24 +2586,40 @@
     });
     els.playButton.addEventListener("click", togglePlayback);
     els.rewindButton.addEventListener("click", () => stopPlayback(true));
-    els.soundButton.addEventListener("click", () => {
+    els.soundButton.addEventListener("click", async () => {
       state.soundEnabled = !state.soundEnabled;
       els.soundButton.setAttribute("aria-pressed", String(state.soundEnabled));
-      els.soundButton.setAttribute("aria-label", state.soundEnabled ? "三味線音を消す" : "三味線音を鳴らす");
+      els.soundButton.setAttribute("aria-label", state.soundEnabled ? "演奏音を消す" : "演奏音を鳴らす");
       els.soundButton.textContent = state.soundEnabled ? "♪" : "×";
-      if (!state.soundEnabled) window.ShianAudioEngine?.stopAll();
-      showToast(state.soundEnabled ? "三味線音を鳴らします。" : "三味線音を消しました。");
+      if (!state.soundEnabled) {
+        stopScheduledAudio();
+      } else if (state.isPlaying) {
+        try {
+          await ensurePlaybackAudio();
+          schedulePlaybackAudio(currentBeat(), .03);
+        } catch (error) {
+          console.error(error);
+          state.soundEnabled = false;
+          els.soundButton.setAttribute("aria-pressed", "false");
+          els.soundButton.textContent = "×";
+          showToast(error instanceof Error ? error.message : "演奏音を準備できませんでした。");
+          return;
+        }
+      }
+      updateMix();
+      showToast(state.soundEnabled ? "三味線と唄の音を鳴らします。" : "演奏音を消しました。");
     });
     els.homeButton.addEventListener("click", () => showToast("試作版のため、ホームへのリンクはまだ接続していません。"));
-    els.helpButton.addEventListener("click", () => showToast("本数とテンポを選んで再生してください。調子・糸・数字に合う三味線音が鳴ります。"));
+    els.helpButton.addEventListener("click", () => showToast("本数とテンポを選んで再生してください。唄の音程がある譜面では音量バランスも調整できます。"));
 
     document.addEventListener("visibilitychange", () => {
       if (document.hidden && state.isPlaying) {
         state.pausedBeat = currentBeat();
         cancelAnimationFrame(state.animationId);
         state.playbackToken += 1;
-        window.ShianAudioEngine?.stopAll();
+        stopScheduledAudio();
         setPlayingUi(false);
+        void releaseWakeLock();
         els.positionText.textContent = "画面を離れたため一時停止しました";
       }
     });
@@ -1975,12 +2627,28 @@
     window.addEventListener("pagehide", () => {
       cancelAnimationFrame(state.animationId);
       state.playbackToken += 1;
-      window.ShianAudioEngine?.stopAll();
+      stopScheduledAudio();
+      void releaseWakeLock();
     });
+
+    async function loadBundledScore() {
+      try {
+        const response = await fetch("./よさこい節.shian-score.json", { cache: "no-store" });
+        if (!response.ok) return;
+        const parsed = parseScoreFile(await response.json());
+        Object.assign(state, parsed);
+        updateSummary();
+        renderLayerControls();
+        renderScore();
+      } catch (error) {
+        console.warn("同梱譜面は読み込めませんでした。", error);
+      }
+    }
 
     updateSummary();
     renderLayerControls();
     renderScore();
+    void loadBundledScore();
   </script>
 </body>
 </html>

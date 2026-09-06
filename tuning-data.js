@@ -5,10 +5,11 @@
     hon: "hon", niage: "niage", sansage: "sansage",
     honchoshi: "hon", niagari: "niage", sansagari: "sansage"
   });
-  const embeddedDocument = window.ShianEmbeddedAssets?.tuningMaster;
-  const documentReady = embeddedDocument
-    ? Promise.resolve(embeddedDocument)
-    : Promise.reject(new Error("同梱された調弦マスターデータが見つかりません。"));
+  const documentReady = fetch("./tuning-master.json", { cache: "force-cache" })
+    .then((response) => {
+      if (!response.ok) throw new Error(`調弦マスターデータを読み込めませんでした（${response.status}）。`);
+      return response.json();
+    });
 
   window.ShianTuningMasterReady = documentReady
     .then((documentData) => {

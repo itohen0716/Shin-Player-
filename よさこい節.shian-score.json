@@ -1,7 +1,7 @@
 {
   "format": "shian-bunkafu",
   "version": 1,
-  "exportedAt": "2026-08-12T22:01:14.256Z",
+  "exportedAt": "2026-09-03T13:24:03.789Z",
   "score": {
     "notes": [
       {
@@ -259,7 +259,7 @@
         "d": 4,
         "v": "6",
         "color": "#222222",
-        "x": 21.25
+        "x": 18.75
       },
       {
         "m": 9,
@@ -268,7 +268,7 @@
         "d": 4,
         "v": "○",
         "color": "#222222",
-        "x": 21.25
+        "x": 18.75
       },
       {
         "m": 9,
@@ -322,7 +322,7 @@
         "d": 4,
         "v": "○",
         "color": "#222222",
-        "x": 27.5
+        "x": 22.5
       },
       {
         "m": 12,
@@ -506,7 +506,7 @@
         "d": 2,
         "v": "3",
         "color": "#222222",
-        "x": 11.25
+        "x": 6.25
       },
       {
         "m": 20,
@@ -690,6 +690,919 @@
         "x": 20
       }
     ],
+    "vocalNotes": [
+      {
+        "id": "86b981dc-68e6-494b-82b4-98be53de075c",
+        "m": 6,
+        "p": 6,
+        "v": "7",
+        "s": 3,
+        "d": 2,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 6,
+          "p": 6
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "61ecc65e-10e4-425e-854f-d9bf298427c4",
+        "m": 8,
+        "p": 2,
+        "v": "4",
+        "s": 3,
+        "d": 2,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#c62828",
+        "anchor": {
+          "m": 8,
+          "p": 2
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "d87f1b31-37f4-4f54-9f5d-01114fddb919",
+        "m": 8,
+        "p": 4,
+        "v": "6",
+        "s": 3,
+        "d": 4,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 8,
+          "p": 4
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "366af5e4-c2c0-4418-a062-bd43a41f2b98",
+        "m": 9,
+        "p": 4,
+        "v": "7",
+        "s": 3,
+        "d": 4,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 9,
+          "p": 4
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "417a4964-a964-4d56-8516-f3fd862c101c",
+        "m": 10,
+        "p": 0,
+        "v": "6",
+        "s": 3,
+        "d": 4,
+        "x": 6.25,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 10,
+          "p": 0
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "d3cd9129-4d32-4294-9759-86ffd410f4dd",
+        "m": 10,
+        "p": 4,
+        "v": "4",
+        "s": 3,
+        "d": 4,
+        "x": 7.5,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 10,
+          "p": 4
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "31630fa2-2344-4b7f-90e2-53c846fdf50c",
+        "m": 14,
+        "p": 0,
+        "v": "4",
+        "s": 3,
+        "d": 2,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 14,
+          "p": 0
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "ec3201cb-606c-46cd-86f7-172e6d0b96fa",
+        "m": 14,
+        "p": 2,
+        "v": "7",
+        "s": 3,
+        "d": 2,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 14,
+          "p": 2
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "a05e43b4-9662-4999-bb09-089a06c06a9f",
+        "m": 14,
+        "p": 6,
+        "v": "4",
+        "s": 3,
+        "d": 2,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 14,
+          "p": 6
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "e2a3616c-482d-44ca-9a0d-d2397e0e222a",
+        "m": 15,
+        "p": 0,
+        "v": "1",
+        "s": 3,
+        "d": 4,
+        "x": 1.25,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 15,
+          "p": 0
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "027f1b76-6759-49d2-81b6-95e5d5e2a9ee",
+        "m": 15,
+        "p": 4,
+        "v": "4",
+        "s": 3,
+        "d": 4,
+        "x": 2.5,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 15,
+          "p": 4
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "6b03dd07-b286-48b2-ac25-578b55b3c2b7",
+        "m": 18,
+        "p": 0,
+        "v": "0",
+        "s": 2,
+        "d": 2,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "open",
+        "color": "#222222",
+        "anchor": {
+          "m": 18,
+          "p": 0
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "a74fc9f4-7305-4f18-9dbf-622416b5ac26",
+        "m": 20,
+        "p": 0,
+        "v": "0",
+        "s": 3,
+        "d": 4,
+        "x": -17.5,
+        "kind": "pitch",
+        "pitchType": "open",
+        "color": "#222222",
+        "anchor": {
+          "m": 20,
+          "p": 0
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "6ca042fc-d8fd-4999-9e0a-022fb9848e2a",
+        "m": 5,
+        "p": 4,
+        "v": "6",
+        "s": 3,
+        "d": 4,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 5,
+          "p": 4
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "a0748762-b852-4f26-9415-a9ab717f723b",
+        "m": 4,
+        "p": 4,
+        "v": "・",
+        "s": 3,
+        "d": 2,
+        "x": 0,
+        "kind": "rest",
+        "pitchType": "none",
+        "color": "#222222",
+        "anchor": {
+          "m": 4,
+          "p": 4
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "083dd8d1-421f-4423-bea9-4e90dcacf858",
+        "m": 4,
+        "p": 6,
+        "v": "4",
+        "s": 3,
+        "d": 2,
+        "x": -20.987060546875,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 4,
+          "p": 4
+        },
+        "anchorOffset": 2
+      },
+      {
+        "id": "e10e3c54-7db1-435b-bb3e-20d2d2cdeb7b",
+        "m": 19,
+        "p": 0,
+        "v": "・",
+        "s": 2,
+        "d": 2,
+        "x": 0,
+        "kind": "rest",
+        "pitchType": "none",
+        "color": "#222222",
+        "anchor": {
+          "m": 19,
+          "p": 0
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "8b28e7eb-390b-4267-90ea-e6ca5e44763c",
+        "m": 19,
+        "p": 2,
+        "v": "0",
+        "s": 2,
+        "d": 2,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "open",
+        "color": "#222222",
+        "anchor": {
+          "m": 19,
+          "p": 0
+        },
+        "anchorOffset": 2
+      },
+      {
+        "id": "8a0214fc-8213-4ae5-b723-5ec37ef15c36",
+        "m": 6,
+        "p": 0,
+        "v": "6",
+        "s": 3,
+        "d": 2,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 6,
+          "p": 0
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "a17dddbc-4917-450e-86f5-a8363f92175d",
+        "m": 6,
+        "p": 2,
+        "v": "6",
+        "s": 3,
+        "d": 2,
+        "x": -16.25,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 6,
+          "p": 0
+        },
+        "anchorOffset": 2
+      },
+      {
+        "id": "c2a488b1-ea5c-42f2-a034-37b675f911b1",
+        "m": 9,
+        "p": 0,
+        "v": "4",
+        "s": 3,
+        "d": 4,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 9,
+          "p": 0
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "f60809e2-3799-4c50-8888-a44d62261671",
+        "m": 11,
+        "p": 0,
+        "v": "1",
+        "s": 3,
+        "d": 4,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 11,
+          "p": 0
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "58cb8cd2-88d4-4c37-9fd4-96b4a77953c6",
+        "m": 11,
+        "p": 4,
+        "v": "0",
+        "s": 3,
+        "d": 4,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "open",
+        "color": "#222222",
+        "anchor": {
+          "m": 11,
+          "p": 4
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "699f9b3f-3d86-4297-a7ef-512c4929bc1f",
+        "m": 5,
+        "p": 0,
+        "v": "4",
+        "s": 3,
+        "d": 2,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 5,
+          "p": 0
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "2750b109-dfa9-4746-a60b-76a9c7747fd4",
+        "m": 6,
+        "p": 4,
+        "v": "6",
+        "s": 3,
+        "d": 2,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#c62828",
+        "anchor": {
+          "m": 6,
+          "p": 4
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "3bd543aa-6c5b-4786-bc25-f5f92ccf1628",
+        "m": 7,
+        "p": 0,
+        "v": "6",
+        "s": 3,
+        "d": 4,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 7,
+          "p": 0
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "eb29e65c-4516-4075-aa9a-5b796ee31d51",
+        "m": 7,
+        "p": 4,
+        "v": "4",
+        "s": 3,
+        "d": 4,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 7,
+          "p": 4
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "678f028f-8315-4396-98dc-d9b6ecdd87aa",
+        "m": 8,
+        "p": 0,
+        "v": "・",
+        "s": 3,
+        "d": 2,
+        "x": 0,
+        "kind": "rest",
+        "pitchType": "none",
+        "color": "#222222",
+        "anchor": {
+          "m": 8,
+          "p": 0
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "63989291-e26c-443b-a01d-8feaa56b3a09",
+        "m": 12,
+        "p": 0,
+        "v": "・",
+        "s": 3,
+        "d": 2,
+        "x": 2.25,
+        "kind": "rest",
+        "pitchType": "none",
+        "color": "#222222",
+        "anchor": {
+          "m": 12,
+          "p": 0
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "1de59c3c-561e-413d-88eb-7dbb0b5846c4",
+        "m": 12,
+        "p": 4,
+        "v": "7",
+        "s": 3,
+        "d": 4,
+        "x": 10,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 12,
+          "p": 4
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "a751ddde-a7a9-41ff-8169-9ea5526375a0",
+        "m": 13,
+        "p": 0,
+        "v": "7",
+        "s": 3,
+        "d": 2,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 13,
+          "p": 0
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "c4b719e4-94e5-4f7b-8abe-dc00a697048f",
+        "m": 13,
+        "p": 2,
+        "v": "6",
+        "s": 3,
+        "d": 2,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 13,
+          "p": 0
+        },
+        "anchorOffset": 2
+      },
+      {
+        "id": "096b9638-cf90-48a7-bab3-94952aabef7c",
+        "m": 13,
+        "p": 4,
+        "v": "4",
+        "s": 3,
+        "d": 4,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 13,
+          "p": 4
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "cb1b2923-c005-450c-a2d4-4ad81b285ccb",
+        "m": 14,
+        "p": 4,
+        "v": "6",
+        "s": 3,
+        "d": 2,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 14,
+          "p": 4
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "532b3a5b-d1d0-4d66-a2b4-41fa04eec373",
+        "m": 16,
+        "p": 0,
+        "v": "・",
+        "s": 3,
+        "d": 2,
+        "x": 0,
+        "kind": "rest",
+        "pitchType": "none",
+        "color": "#222222",
+        "anchor": {
+          "m": 16,
+          "p": 0
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "2b915d94-cb7d-4992-89d6-c92d43e13853",
+        "m": 16,
+        "p": 2,
+        "v": "4",
+        "s": 3,
+        "d": 2,
+        "x": -13.75,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 16,
+          "p": 0
+        },
+        "anchorOffset": 2
+      },
+      {
+        "id": "d38c2f98-8a3d-4116-a6ce-db094d409849",
+        "m": 16,
+        "p": 4,
+        "v": "1",
+        "s": 3,
+        "d": 4,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 16,
+          "p": 4
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "0c8b600a-d05e-4b4d-8d13-cc41a4bc3bb7",
+        "m": 17,
+        "p": 0,
+        "v": "0",
+        "s": 3,
+        "d": 4,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "open",
+        "color": "#222222",
+        "anchor": {
+          "m": 17,
+          "p": 0
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "822e11f7-74e1-4ef7-858a-70a2131c0267",
+        "m": 19,
+        "p": 4,
+        "v": "0",
+        "s": 2,
+        "d": 2,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "open",
+        "color": "#222222",
+        "anchor": {
+          "m": 19,
+          "p": 4
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "aee45495-50b5-4d71-ba67-03d7f8a993c9",
+        "m": 19,
+        "p": 6,
+        "v": "3",
+        "s": 2,
+        "d": 2,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 19,
+          "p": 6
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "ae20ffa4-d434-4dd0-a722-d20d1b3a9c31",
+        "m": 20,
+        "p": 4,
+        "v": "1",
+        "s": 3,
+        "d": 2,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 20,
+          "p": 4
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "336738e7-5c1c-4bb0-991c-7255624daf6b",
+        "m": 20,
+        "p": 6,
+        "v": "0",
+        "s": 3,
+        "d": 2,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "open",
+        "color": "#222222",
+        "anchor": {
+          "m": 20,
+          "p": 6
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "7a6740cb-0ce4-4cd8-82b3-9b601f01e245",
+        "m": 21,
+        "p": 0,
+        "v": "0",
+        "s": 3,
+        "d": 2,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "open",
+        "color": "#222222",
+        "anchor": {
+          "m": 21,
+          "p": 0
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "730fbb28-a4a2-451b-a4e1-e87c5435a69e",
+        "m": 21,
+        "p": 2,
+        "v": "4",
+        "s": 3,
+        "d": 2,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 21,
+          "p": 0
+        },
+        "anchorOffset": 2
+      },
+      {
+        "id": "f83eeeeb-77cf-4ec6-be3c-c4715d483394",
+        "m": 21,
+        "p": 4,
+        "v": "1",
+        "s": 3,
+        "d": 4,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 21,
+          "p": 4
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "1f4806f3-0e63-4876-8f02-77d499bb2a00",
+        "m": 22,
+        "p": 0,
+        "v": "0",
+        "s": 3,
+        "d": 4,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "open",
+        "color": "#222222",
+        "anchor": {
+          "m": 22,
+          "p": 0
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "4e4c981e-9e33-4568-a20a-4acdccf24897",
+        "m": 22,
+        "p": 4,
+        "v": "0",
+        "s": 3,
+        "d": 4,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "open",
+        "color": "#222222",
+        "anchor": {
+          "m": 22,
+          "p": 4
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "abd1d1e0-cd38-4ee0-bb9f-2b96ff3266c4",
+        "m": 23,
+        "p": 0,
+        "v": "0",
+        "s": 3,
+        "d": 4,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "open",
+        "color": "#222222",
+        "anchor": {
+          "m": 23,
+          "p": 0
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "3c356699-005e-46e5-9ca4-1fcd57771cbd",
+        "m": 23,
+        "p": 4,
+        "v": "0",
+        "s": 3,
+        "d": 4,
+        "x": 0,
+        "kind": "pitch",
+        "pitchType": "open",
+        "color": "#222222",
+        "anchor": {
+          "m": 23,
+          "p": 4
+        },
+        "anchorOffset": 0
+      },
+      {
+        "id": "0ccef29e-e6ca-43e9-98e6-917ea5e0ecd0",
+        "m": 12,
+        "p": 2,
+        "v": "4",
+        "s": 3,
+        "d": 2,
+        "x": -8,
+        "kind": "pitch",
+        "pitchType": "stopped",
+        "color": "#222222",
+        "anchor": {
+          "m": 12,
+          "p": 0
+        },
+        "anchorOffset": 2
+      }
+    ],
+    "vocalSlurs": [
+      {
+        "id": "efd13efb-1be0-4d9a-967a-c00210dc85a9",
+        "startId": "2750b109-dfa9-4746-a60b-76a9c7747fd4",
+        "endId": "86b981dc-68e6-494b-82b4-98be53de075c"
+      },
+      {
+        "id": "427b5356-d18c-445a-85b9-5fb2a6f331b4",
+        "startId": "417a4964-a964-4d56-8516-f3fd862c101c",
+        "endId": "d3cd9129-4d32-4294-9759-86ffd410f4dd"
+      },
+      {
+        "id": "71b5a59e-2395-48c4-b036-cdc6d6ae0127",
+        "startId": "a751ddde-a7a9-41ff-8169-9ea5526375a0",
+        "endId": "c4b719e4-94e5-4f7b-8abe-dc00a697048f"
+      },
+      {
+        "id": "3d87ce7c-16bb-4c36-9c87-fa5780878b84",
+        "startId": "096b9638-cf90-48a7-bab3-94952aabef7c",
+        "endId": "31630fa2-2344-4b7f-90e2-53c846fdf50c"
+      },
+      {
+        "id": "cd763824-316f-4736-a9a5-323fe17b4733",
+        "startId": "cb1b2923-c005-450c-a2d4-4ad81b285ccb",
+        "endId": "a05e43b4-9662-4999-bb09-089a06c06a9f"
+      },
+      {
+        "id": "af8ad154-9a44-4621-b0d3-ebae274837d7",
+        "startId": "822e11f7-74e1-4ef7-858a-70a2131c0267",
+        "endId": "aee45495-50b5-4d71-ba67-03d7f8a993c9"
+      },
+      {
+        "id": "272336ed-fe01-4cbc-bb7e-1bd1f4e64b04",
+        "startId": "ae20ffa4-d434-4dd0-a722-d20d1b3a9c31",
+        "endId": "7a6740cb-0ce4-4cd8-82b3-9b601f01e245"
+      },
+      {
+        "id": "e6695589-ea79-4c23-b7e7-de1809857db3",
+        "startId": "4e4c981e-9e33-4568-a20a-4acdccf24897",
+        "endId": "3c356699-005e-46e5-9ca4-1fcd57771cbd"
+      },
+      {
+        "id": "5efbe7dc-9185-4dfd-b904-56f416f7dfda",
+        "startId": "6ca042fc-d8fd-4999-9e0a-022fb9848e2a",
+        "endId": "8a0214fc-8213-4ae5-b723-5ec37ef15c36"
+      },
+      {
+        "id": "e361b8fc-18b8-47ff-b4d0-f7fa72925f7f",
+        "startId": "6ca042fc-d8fd-4999-9e0a-022fb9848e2a",
+        "endId": "8a0214fc-8213-4ae5-b723-5ec37ef15c36"
+      },
+      {
+        "id": "758f8190-3e08-4ead-8c1f-a7b3562e5216",
+        "startId": "4e4c981e-9e33-4568-a20a-4acdccf24897",
+        "endId": "3c356699-005e-46e5-9ca4-1fcd57771cbd"
+      }
+    ],
+    "vocalString": 2,
+    "vocalDuration": 2,
+    "vocalVisible": true,
+    "lyricsVisible": true,
     "scoreParts": [],
     "barlineKinds": {
       "0:4": "repeat-end",
@@ -697,7 +1610,7 @@
       "3:7": "repeat-end",
       "3:6": "single",
       "3:3": "repeat-start",
-      "2:7": "final",
+      "2:7": "single",
       "1:7": "double"
     },
     "title": "よさこい節",
@@ -727,13 +1640,13 @@
     "lyrics": [
       "　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　と　　  さ　──　の ─",
       "─こう(ｵ) ────　ち　──　の ─ ・　  は　 り 　──　 ま ──　や　──　ば　──────  し　──  で　───　ぼう(ｵ) ─",
-      "─さ ─── ん ───   か　 ん────   ざ ─── し ──　・　か  い ──── よ ──── 　 つ た ─────── ・　　　よさ ───",
+      "─さ ─── ん ───   か　 ん────   ざ ─── し ──　・　か  い ──── よ ──── 　 つ た ─────── 　　　よさ ───",
       "こ ──  い ────── よ さ ────　こ ─  い ──────────────────"
     ],
-    "m": 21,
-    "s": 3,
-    "p": 0,
-    "d": 1,
+    "m": 19,
+    "s": 1,
+    "p": 2,
+    "d": 2,
     "layers": [
       {
         "id": "technique-layer",
@@ -745,7 +1658,7 @@
             "id": "48befa18-ca6d-4137-badb-061e64b3e6fe",
             "type": "symbol",
             "x": 183.90518223234625,
-            "y": 92.87086711983129,
+            "y": 92.8708678978205,
             "text": "Ⅰ",
             "color": "#222222",
             "size": 14,
@@ -763,7 +1676,7 @@
             "id": "b4071028-fd06-477e-a695-8a1c783916e4",
             "type": "symbol",
             "x": 334.38923690205013,
-            "y": 91.7319149830529,
+            "y": 91.73191576104212,
             "text": "Ⅰ",
             "color": "#222222",
             "size": 14,
@@ -781,7 +1694,7 @@
             "id": "935144ba-371f-4f48-977f-c97a8ee421ba",
             "type": "symbol",
             "x": 487.1689920273348,
-            "y": 90.59296284627455,
+            "y": 90.59296362426376,
             "text": "Ⅱ",
             "color": "#222222",
             "size": 14,
@@ -799,7 +1712,7 @@
             "id": "4dbbc4c4-3f42-42f0-a7b0-eacd71eeff54",
             "type": "symbol",
             "x": 175.7367596810934,
-            "y": 217.8815396283718,
+            "y": 265.2548311691187,
             "text": "Ⅱ",
             "color": "#222222",
             "size": 14,
@@ -817,7 +1730,7 @@
             "id": "e639a779-82c9-4bd6-8bea-ba76f7f79b41",
             "type": "symbol",
             "x": 547.5868451025057,
-            "y": 217.8815396283718,
+            "y": 265.2548311691187,
             "text": "Ⅱ",
             "color": "#222222",
             "size": 14,
@@ -835,7 +1748,7 @@
             "id": "b036ec46-d266-460f-a17d-de26351e6efe",
             "type": "symbol",
             "x": 747.4907460136674,
-            "y": 234.27177241046556,
+            "y": 281.6450640748669,
             "text": "Ⅱ",
             "color": "#222222",
             "size": 14,
@@ -853,7 +1766,7 @@
             "id": "b0774497-6de8-426b-8516-61459113407b",
             "type": "symbol",
             "x": 817.0380125284738,
-            "y": 234.27177241046556,
+            "y": 281.6450640748669,
             "text": "Ⅰ",
             "color": "#222222",
             "size": 14,
@@ -871,7 +1784,7 @@
             "id": "3a8894e6-37ac-4b5d-b98f-068ce20fc0e0",
             "type": "symbol",
             "x": 940.93465261959,
-            "y": 86.73120356874287,
+            "y": 86.73120422307764,
             "text": "Ⅱ",
             "color": "#222222",
             "size": 14,
@@ -889,7 +1802,7 @@
             "id": "d47285f3-7515-48e6-91ad-a5d4f8a23358",
             "type": "symbol",
             "x": 955.5808656036446,
-            "y": 217.8815396283718,
+            "y": 265.2548311691187,
             "text": "Ⅱ",
             "color": "#222222",
             "size": 14,
@@ -907,7 +1820,7 @@
             "id": "a0d002f9-d5ca-4b28-89d6-c4db9f98b6a0",
             "type": "symbol",
             "x": 218.48305808656036,
-            "y": 341.7425821510348,
+            "y": 436.4891645232005,
             "text": "Ⅲ",
             "color": "#222222",
             "size": 14,
@@ -925,7 +1838,7 @@
             "id": "072cb3e8-b77a-40b8-b3c2-1ee34843812f",
             "type": "symbol",
             "x": 358.71654328018224,
-            "y": 358.13281493312854,
+            "y": 452.8793974289487,
             "text": "Ⅱ",
             "color": "#222222",
             "size": 14,
@@ -943,7 +1856,7 @@
             "id": "d15f3296-eb08-40ac-946b-075e67e70c49",
             "type": "symbol",
             "x": 543.4225512528474,
-            "y": 358.13281493312854,
+            "y": 452.8793974289487,
             "text": "Ⅱ",
             "color": "#222222",
             "size": 14,
@@ -961,7 +1874,7 @@
             "id": "0dd6eb94-db75-4e96-a82b-d2ff1037d6d7",
             "type": "symbol",
             "x": 273.2239464692483,
-            "y": 481.99385745579156,
+            "y": 624.1137307830305,
             "text": "Ⅱ",
             "color": "#222222",
             "size": 14,
@@ -979,7 +1892,7 @@
             "id": "6d64990e-2c6d-475f-b36f-3a363610b802",
             "type": "symbol",
             "x": 403.1890660592255,
-            "y": 465.60362467369777,
+            "y": 607.7234978772823,
             "text": "Ⅱ",
             "color": "#222222",
             "size": 14,
@@ -997,7 +1910,7 @@
             "id": "b2f8b33b-5767-4b9e-8bd0-56d4c7799777",
             "type": "symbol",
             "x": 817.0380125284738,
-            "y": 465.60362467369777,
+            "y": 607.7234978772823,
             "text": "Ⅱ",
             "color": "#222222",
             "size": 14,
@@ -1020,58 +1933,92 @@
         "visible": true,
         "items": [
           {
-            "id": "89895a1d-7e2e-4c21-84b5-9370d2212399",
-            "type": "rect",
-            "x1": 386.35392938496585,
-            "y1": 95.72536605307533,
-            "x2": 503.66600227790434,
-            "y2": 157.22878027122522,
-            "color": "#222222",
-            "lineStyle": "solid"
+            "id": "edc02cc4-aac2-4053-b297-41e2cae7874f",
+            "type": "marker",
+            "x1": 229.04009798255825,
+            "y1": 97.20536447013774,
+            "x2": 371.20291166607615,
+            "y2": 162.81897297267807,
+            "color": "#f4df59",
+            "opacity": 0.25,
+            "layoutRow": 0,
+            "layoutOffsetY": 25.050612067658733
           },
           {
-            "id": "96021c88-702f-4660-aaff-37baa7773d53",
-            "type": "rect",
-            "x1": 607.3106492027335,
-            "y1": 221.01009871967702,
-            "x2": 714.3721526195901,
-            "y2": 281.0100987196769,
-            "color": "#d63c32",
-            "lineStyle": "solid"
+            "id": "325fd488-f9eb-42d2-9817-ea2cacdf36c4",
+            "type": "marker",
+            "x1": 210.8140962282611,
+            "y1": 268.90204670711785,
+            "x2": 282.50305500227773,
+            "y2": 333.3005791153128,
+            "color": "#a8d8a0",
+            "opacity": 0.25,
+            "layoutRow": 1,
+            "layoutOffsetY": 24.905422903384363
           },
           {
-            "id": "5fac4a24-b1ac-41e0-8ee9-955cd74cd4f8",
-            "type": "arrow",
-            "x1": 316.87784738041,
-            "y1": 180.0078225742437,
-            "x2": 332.82317767653757,
-            "y2": 148.11716335001785,
-            "color": "#d63c32",
-            "lineStyle": "solid"
+            "id": "10d0001e-bdb3-4c82-b21c-ddcb5e13ccc4",
+            "type": "marker",
+            "x1": 334.517030038347,
+            "y1": 274.4445873178852,
+            "x2": 394.05528389527,
+            "y2": 329.1225944033355,
+            "color": "#f2a9a0",
+            "opacity": 0.25,
+            "layoutRow": 1,
+            "layoutOffsetY": 25.587700852779335
           },
           {
-            "id": "e86230df-0fd3-4100-9fd4-d048edbbc796",
+            "id": "a517814f-1683-4d80-92a0-7a2c9bcc0c18",
             "type": "text",
-            "x": 328.2673690205011,
-            "y": 187.9804873803002,
-            "text": "強く",
-            "color": "#d63c32",
-            "size": 20,
-            "background": "none"
+            "x": 183.62044419134398,
+            "y": 177.72992446686445,
+            "text": "ここの繰り返しは前奏の時だけでなくいつも2回",
+            "color": "#8b48a5",
+            "size": 12,
+            "background": "none",
+            "layoutRow": 0,
+            "layoutOffsetY": 72.76836781311528
+          },
+          {
+            "id": "5c5257c1-3e96-472e-9cd7-840d246e6c34",
+            "type": "text",
+            "x": 693.8710136674259,
+            "y": 731.2606518242128,
+            "text": "2nd D.C(二番の唄は一番初めに返ります\n　終わりも2回繰り返して終わります)",
+            "color": "#121212",
+            "size": 12,
+            "background": "none",
+            "layoutRow": 3,
+            "layoutOffsetY": 112.59609510821826
+          },
+          {
+            "id": "b943fb8e-6e96-4e44-9628-f74b89663292",
+            "type": "text",
+            "x": 775.875569476082,
+            "y": 407.79824868102105,
+            "text": "ｋｋｋ；",
+            "color": "#121212",
+            "size": 12,
+            "background": "none",
+            "layoutRow": 2,
+            "layoutOffsetY": -39.631974680891744
           }
         ],
         "printEnabled": true
       }
     ],
     "activeLayerId": "technique-layer",
-    "scoreEditLayer": "notes",
-    "drawTool": "select",
+    "scoreEditLayer": "vocal",
+    "drawTool": "marker",
     "selectedSymbol": "Ⅱ",
     "symbolSide": "above",
-    "drawColor": "#d63c32",
+    "drawColor": "#121212",
+    "markerColor": "#f2a9a0",
+    "markerStyleVersion": 2,
     "numberColor": "#222222",
     "openColor": "#222222",
-    "textSize": 20,
+    "textSize": 12,
     "textBackground": "none",
     "preview": true,
     "annotationCoordVersion": 2,

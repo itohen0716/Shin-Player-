@@ -16,24 +16,6 @@
   let teacherBuffer;
   let loadPromise;
 
-  function decodeBase64Chunks(asset) {
-    if (!asset || !Array.isArray(asset.chunks) || !Number.isInteger(asset.byteLength) || asset.byteLength <= 0) {
-      throw new Error("同梱された三味線音源の形式が不正です。");
-    }
-    const bytes = new Uint8Array(asset.byteLength);
-    let offset = 0;
-    for (const chunk of asset.chunks) {
-      const binary = atob(chunk);
-      if (offset + binary.length > bytes.length) throw new Error("同梱された三味線音源のサイズが不正です。");
-      for (let index = 0; index < binary.length; index += 1) {
-        bytes[offset + index] = binary.charCodeAt(index);
-      }
-      offset += binary.length;
-    }
-    if (offset !== bytes.length) throw new Error("同梱された三味線音源を復元できませんでした。");
-    return bytes.buffer;
-  }
-
   function getContext() {
     if (!AudioContextClass) throw new Error("このブラウザーはWeb Audio APIに対応していません。");
     if (!context || context.state === "closed") context = new AudioContextClass({ latencyHint: "interactive" });
@@ -51,15 +33,20 @@
     if (loadPromise) return loadPromise;
     loadPromise = (async () => {
       const ctx = await resume();
-      const embeddedAudio = window.ShianEmbeddedAssets?.audio;
-      if (!embeddedAudio?.chunks?.length) throw new Error("同梱された三味線音源が見つかりません。");
-      const audioData = decodeBase64Chunks(embeddedAudio);
+      let response;
+      try {
+        response = await fetch("./audio/teacher-1to12-octave.wav", { cache: "force-cache" });
+      } catch (_) {
+        throw new Error("三味線音源を読み込めませんでした。通信状態を確認してください。");
+      }
+      if (!response.ok) throw new Error(`三味線音源を読み込めませんでした（${response.status}）。`);
+      const audioData = await response.arrayBuffer();
+      if (!audioData.byteLength) throw new Error("三味線音源のデータが空です。");
       try {
         teacherBuffer = await ctx.decodeAudioData(audioData);
       } catch (_) {
-        throw new Error("同梱された三味線音源を再生用に変換できませんでした。");
+        throw new Error("三味線音源を再生用に変換できませんでした。");
       }
-      if (embeddedAudio?.chunks?.length) embeddedAudio.chunks.length = 0;
       return teacherBuffer;
     })().catch((error) => {
       loadPromise = null;
@@ -109,7 +96,10 @@
 
     source.buffer = audioBuffer;
     source.playbackRate.value = rate;
-    source.connect(gain).connect(ctx.destination);
+    const destination = options.destination && typeof options.destination.connect === "function"
+      ? options.destination
+      : ctx.destination;
+    source.connect(gain).connect(destination);
     gain.gain.setValueAtTime(0.0001, startAt);
     gain.gain.linearRampToValueAtTime(Number(options.volume) || 0.9, startAt + fade);
     gain.gain.setValueAtTime(Number(options.volume) || 0.9, startAt + Math.max(fade, outputDuration - fade));
