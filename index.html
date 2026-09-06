@@ -945,7 +945,7 @@
           <div class="layer-options" id="layer-options"></div>
         </section>
         <button class="file-button" id="file-button" type="button">絲庵譜を読み込む</button>
-        <input id="file-input" type="file" accept="application/json,.json">
+        <input id="file-input" type="file">
       </div>
     </section>
 
@@ -2595,13 +2595,22 @@
 
     async function importFile(file) {
       if (!file) return;
+      const fileName = typeof file.name === "string" ? file.name.trim().toLowerCase() : "";
+      if (!fileName.endsWith(".json")) {
+        throw new Error("JSONファイルを選択してください。");
+      }
       if (file.size > 5 * 1024 * 1024) throw new Error("JSONファイルが大きすぎます（上限5MB）。");
-      const text = await file.text();
+      let text;
+      try {
+        text = await file.text();
+      } catch (error) {
+        throw new Error("JSONファイルを読み込めませんでした。もう一度選択してください。");
+      }
       let json;
       try {
         json = JSON.parse(text);
       } catch (error) {
-        throw new Error("JSONの形式を読み取れませんでした。");
+        throw new Error("JSONファイルを読み込めませんでした。ファイルが壊れていないか確認してください。");
       }
       const parsed = parseScoreFile(json);
       stopPlayback(true);
