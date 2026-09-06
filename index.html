@@ -348,25 +348,6 @@
     .position-text { margin: 4px 0 0; color: var(--muted); font-family: system-ui, sans-serif; font-size: 13px; }
     .technique-counts { color: var(--muted); font-family: system-ui, sans-serif; font-size: 11px; text-align: right; }
 
-    .playback-options { display: flex; align-items: flex-end; gap: 9px; }
-    .follow-toggle {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      min-height: 32px;
-      padding: 4px 8px;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: #fffdf8;
-      color: var(--brown-dark);
-      font-family: system-ui, sans-serif;
-      font-size: 12px;
-      font-weight: 700;
-      white-space: nowrap;
-      cursor: pointer;
-    }
-    .follow-toggle input { width: 16px; height: 16px; margin: 0; accent-color: var(--blue); }
-
     .score-frame {
       overflow-x: auto;
       overscroll-behavior-inline: contain;
@@ -413,7 +394,8 @@
       align-items: center;
       gap: 22px;
       color: #342a23;
-      font-size: 13px;
+      font-size: 17px;
+      font-weight: 600;
     }
 
     .score-sheet-tuning { white-space: nowrap; }
@@ -427,9 +409,9 @@
       margin-bottom: 0;
     }
 
-    .score-system.has-lyrics { grid-template-rows: 105px 25px; min-height: 130px; }
+    .score-system.has-lyrics { grid-template-rows: 105px 30px; min-height: 135px; }
     .score-system.has-vocal { grid-template-rows: 105px 50px; min-height: 155px; }
-    .score-system.has-lyrics.has-vocal { grid-template-rows: 105px 25px 50px; min-height: 180px; }
+    .score-system.has-lyrics.has-vocal { grid-template-rows: 105px 30px 50px; min-height: 185px; }
 
     .score-system:last-child { margin-bottom: 0; }
 
@@ -485,11 +467,12 @@
       align-self: stretch;
       overflow: hidden;
       min-width: 0;
-      padding-top: 4px;
+      padding-top: 2px;
       border-bottom: 1px solid #d7c3ad;
       color: #5c4639;
-      font-size: 13px;
-      line-height: 18px;
+      font-size: 17px;
+      font-weight: 500;
+      line-height: 25px;
       white-space: pre;
     }
 
@@ -589,6 +572,8 @@
       overflow: visible;
       pointer-events: none;
     }
+
+    .writing-layer-svg.writing-layer-underlay { z-index: 1; }
 
     .measure {
       position: relative;
@@ -916,8 +901,6 @@
       .layer-card-head { align-items: flex-start; }
       .layer-help { max-width: 45%; text-align: right; }
       .player-status { align-items: start; }
-      .playback-options { flex-direction: column; align-items: flex-end; gap: 4px; }
-      .follow-toggle { min-height: 30px; }
     }
 
     @media (min-width: 1024px) {
@@ -1012,10 +995,7 @@
           <h2 id="score-heading">演奏位置</h2>
           <p class="position-text" id="position-text" aria-live="polite">先頭で停止中</p>
         </div>
-        <div class="playback-options">
-          <label class="follow-toggle"><input id="follow-toggle" type="checkbox">譜面を自動で追う</label>
-          <div class="technique-counts" id="technique-counts">通常音 69<br>ス 0・ハ 0</div>
-        </div>
+        <div class="technique-counts" id="technique-counts">通常音 69<br>ス 0・ハ 0</div>
       </div>
       <div class="score-frame" id="score-frame" tabindex="0" aria-label="絲庵譜。再生中は横方向と段方向へ自動追従できます">
         <div class="score-paper" id="score-paper"></div>
@@ -1171,7 +1151,6 @@
       animationId: 0,
       toastTimer: 0,
       tempoRestartTimer: 0,
-      followEnabled: window.matchMedia("(max-width: 719px)").matches,
       lastFollowedRow: -1,
       wakeLock: null
     };
@@ -1193,7 +1172,6 @@
       mixValue: document.querySelector("#mix-value"),
       positionText: document.querySelector("#position-text"),
       techniqueCounts: document.querySelector("#technique-counts"),
-      followToggle: document.querySelector("#follow-toggle"),
       optionalLayerCard: document.querySelector("#optional-layer-card"),
       layerOptions: document.querySelector("#layer-options"),
       scoreFrame: document.querySelector("#score-frame"),
@@ -1361,7 +1339,6 @@
       els.mixControl.classList.toggle("hidden", !hasVocalNotes());
       els.mixSlider.value = String(state.balance);
       els.mixValue.textContent = `三味線 ${100 - state.balance}％・唄 ${state.balance}％`;
-      els.followToggle.checked = state.followEnabled;
     }
 
     function hasLyrics() {
@@ -1582,7 +1559,8 @@
     const ANNOTATION_SOURCE_FIRST_STRING_Y = 111;
     const ANNOTATION_SOURCE_ROW_PITCH = 124;
     const ANNOTATION_SOURCE_STRING_SPAN = 36;
-    const LYRIC_SOURCE_FONT_SIZE = 15.5;
+    const LYRIC_SOURCE_FONT_SIZE = 19;
+    const COMMENT_MIN_FONT_SIZE = 17;
 
     function svgElement(name, attributes = {}) {
       const element = document.createElementNS(SVG_NAMESPACE, name);
@@ -1605,11 +1583,22 @@
       return "";
     }
 
+    function writingItemCenterY(item) {
+      if (Array.isArray(item.points) && item.points.length) {
+        const values = item.points.map((point) => Array.isArray(point) ? finiteNumber(point[1]) : finiteNumber(point?.y));
+        return values.reduce((sum, value) => sum + value, 0) / values.length;
+      }
+      const type = String(item.type || "").toLowerCase();
+      if (type === "text" || type === "comment") return finiteNumber(item.y);
+      return (finiteNumber(item.y1) + finiteNumber(item.y2)) / 2;
+    }
+
     function writingCoordinateMapper() {
       const row = els.scorePaper.querySelector(".score-row");
       const systems = Array.from(els.scorePaper.querySelectorAll(".score-system"));
       if (!(row instanceof HTMLElement) || systems.length === 0) {
-        return { mapPoint: (x, y) => ({ x: finiteNumber(x), y: finiteNumber(y) }), scaleX: 1 };
+        const identity = (_item, x, y) => ({ x: finiteNumber(x), y: finiteNumber(y) });
+        return { mapPoint: (x, y) => identity(null, x, y), mapItemPoint: identity, scaleX: 1 };
       }
       const paperRect = els.scorePaper.getBoundingClientRect();
       const rowRect = row.getBoundingClientRect();
@@ -1664,7 +1653,22 @@
         };
       }
 
-      return { mapPoint, scaleX };
+      function mapItemPoint(item, x, y) {
+        const layoutRow = Number(item?.layoutRow);
+        const layoutOffsetY = Number(item?.layoutOffsetY);
+        if (Number.isInteger(layoutRow) && layoutRow >= 0 && layoutRow < systems.length && Number.isFinite(layoutOffsetY)) {
+          const system = systems[layoutRow];
+          const systemRect = system.getBoundingClientRect();
+          const centerY = writingItemCenterY(item);
+          return {
+            x: rowLeft + (finiteNumber(x) - ANNOTATION_SOURCE_LEFT) * scaleX,
+            y: systemRect.top - paperRect.top + layoutOffsetY * scaleX + (finiteNumber(y) - centerY) * scaleX
+          };
+        }
+        return mapPoint(x, y);
+      }
+
+      return { mapPoint, mapItemPoint, scaleX };
     }
 
     function normalizedPoints(item) {
@@ -1678,13 +1682,31 @@
 
     function appendWritingItem(svg, item, coordinateMapper, markerId) {
       if (!item || typeof item !== "object") return;
-      const { mapPoint, scaleX } = coordinateMapper;
+      const { mapItemPoint, scaleX } = coordinateMapper;
+      const mapPoint = (x, y) => mapItemPoint(item, x, y);
       const type = String(item.type || "").toLowerCase();
       const color = itemColor(item);
       const dash = itemDash(item);
       const strokeWidth = Math.max(1, finiteNumber(item.strokeWidth ?? item.lineWidth, 2) * scaleX);
       const common = { fill: "none", stroke: color, "stroke-width": strokeWidth, "stroke-linecap": "round", "stroke-linejoin": "round" };
       if (dash) common["stroke-dasharray"] = dash;
+
+      if (type === "marker" || type === "highlight") {
+        const start = mapPoint(item.x1, item.y1);
+        const end = mapPoint(item.x2, item.y2);
+        svg.append(svgElement("rect", {
+          x: Math.min(start.x, end.x),
+          y: Math.min(start.y, end.y),
+          width: Math.abs(end.x - start.x),
+          height: Math.abs(end.y - start.y),
+          rx: Math.max(5, 12 * scaleX),
+          ry: Math.max(5, 12 * scaleX),
+          fill: color,
+          "fill-opacity": Math.max(.1, Math.min(.55, finiteNumber(item.opacity, .35))),
+          stroke: "none"
+        }));
+        return;
+      }
 
       if (type === "rect" || type === "box") {
         const start = mapPoint(item.x1, item.y1);
@@ -1703,16 +1725,37 @@
 
       if (type === "text" || type === "comment") {
         const point = mapPoint(item.x, item.y);
+        const fontSize = Math.max(COMMENT_MIN_FONT_SIZE, finiteNumber(item.size, 16) * scaleX);
+        const lines = String(item.text || "").replace(/\r\n?/g, "\n").split("\n");
+        const lineHeight = fontSize * 1.35;
+        const longest = Math.max(1, ...lines.map((line) => Array.from(line).length));
+        const background = String(item.background || "none");
+        if (background !== "none") {
+          svg.append(svgElement("rect", {
+            x: point.x - 6,
+            y: point.y - fontSize * 1.08 - 4,
+            width: Math.max(fontSize * 2.5, longest * fontSize * .95) + 12,
+            height: fontSize * 1.5 + (lines.length - 1) * lineHeight,
+            rx: 6,
+            fill: background === "translucent" ? "rgba(255,255,255,.72)" : "#fff",
+            stroke: "none"
+          }));
+        }
         const text = svgElement("text", {
           x: point.x,
           y: point.y,
           fill: color,
           stroke: "none",
-          "font-size": Math.max(8, finiteNumber(item.size, 16) * scaleX),
-          "font-family": '"Yu Mincho", "Hiragino Mincho ProN", serif',
+          "font-size": fontSize,
+          "font-family": '"Yu Gothic", "Noto Sans JP", sans-serif',
+          "font-weight": 600,
           "dominant-baseline": "alphabetic"
         });
-        text.textContent = typeof item.text === "string" ? item.text : "";
+        lines.forEach((line, index) => {
+          const span = svgElement("tspan", { x: point.x, dy: index === 0 ? 0 : lineHeight });
+          span.textContent = line || "\u00a0";
+          text.append(span);
+        });
         svg.append(text);
         return;
       }
@@ -1736,15 +1779,43 @@
       }
     }
 
+    function writingItemBottom(item, coordinateMapper) {
+      const type = String(item?.type || "").toLowerCase();
+      const map = (x, y) => coordinateMapper.mapItemPoint(item, x, y);
+      if (type === "text" || type === "comment") {
+        const point = map(item.x, item.y);
+        const fontSize = Math.max(COMMENT_MIN_FONT_SIZE, finiteNumber(item.size, 16) * coordinateMapper.scaleX);
+        const lineCount = String(item.text || "").replace(/\r\n?/g, "\n").split("\n").length;
+        return point.y + (lineCount - 1) * fontSize * 1.35 + fontSize * .5;
+      }
+      const points = normalizedPoints(item);
+      if (points.length) return Math.max(...points.map((point) => map(point.x, point.y).y)) + 8;
+      return Math.max(map(item.x1, item.y1).y, map(item.x2, item.y2).y) + 20;
+    }
+
     function renderWritingLayers() {
       els.scorePaper.querySelectorAll(".writing-layer-svg").forEach((element) => element.remove());
       const visibleLayers = state.optionalLayers.filter((layer) => layer.visible && layer.items.length > 0);
       if (!visibleLayers.length) return;
 
-      const width = els.scorePaper.clientWidth;
-      const height = Math.max(els.scorePaper.scrollHeight, 66 + state.rowMeasureCounts.length * 130 + 10);
       const coordinateMapper = writingCoordinateMapper();
+      const width = els.scorePaper.clientWidth || finiteNumber(parseFloat(els.scorePaper.style.width), 864);
+      const requiredBottom = Math.max(0, ...visibleLayers.flatMap((layer) => layer.items).map((item) => writingItemBottom(item, coordinateMapper)));
+      const height = Math.max(els.scorePaper.scrollHeight, requiredBottom + 18);
+      els.scorePaper.style.minHeight = `${Math.ceil(height)}px`;
       visibleLayers.forEach((layer, layerIndex) => {
+        const markerItems = layer.items.filter((item) => ["marker", "highlight"].includes(String(item.type || "").toLowerCase()));
+        if (markerItems.length) {
+          const underlay = svgElement("svg", {
+            class: "writing-layer-svg writing-layer-underlay",
+            width,
+            height,
+            viewBox: `0 0 ${width} ${height}`,
+            "aria-hidden": "true"
+          });
+          markerItems.forEach((item) => appendWritingItem(underlay, item, coordinateMapper, ""));
+          els.scorePaper.append(underlay);
+        }
         const svg = svgElement("svg", {
           class: "writing-layer-svg",
           width,
@@ -1767,8 +1838,10 @@
         marker.append(svgElement("path", { d: "M 0 0 L 10 5 L 0 10 z", fill: "context-stroke" }));
         defs.append(marker);
         svg.append(defs);
-        layer.items.forEach((item) => appendWritingItem(svg, item, coordinateMapper, markerId));
-        els.scorePaper.append(svg);
+        layer.items
+          .filter((item) => !["marker", "highlight"].includes(String(item.type || "").toLowerCase()))
+          .forEach((item) => appendWritingItem(svg, item, coordinateMapper, markerId));
+        if (svg.childNodes.length > 1) els.scorePaper.append(svg);
       });
     }
 
@@ -1778,12 +1851,13 @@
         const row = line.parentElement?.querySelector(".score-row");
         const rowWidth = row instanceof HTMLElement ? row.getBoundingClientRect().width : 0;
         const scaleX = rowWidth > 0 ? rowWidth / (ANNOTATION_SOURCE_RIGHT - ANNOTATION_SOURCE_LEFT) : 1;
-        line.style.fontSize = `${Math.max(10, LYRIC_SOURCE_FONT_SIZE * scaleX).toFixed(2)}px`;
+        line.style.fontSize = `${Math.max(16, LYRIC_SOURCE_FONT_SIZE * scaleX).toFixed(2)}px`;
       });
     }
 
     function renderScore() {
       els.scorePaper.replaceChildren();
+      els.scorePaper.style.minHeight = "";
       const totalMeasures = measureCount();
       const rowCounts = [];
       const sourceCounts = state.rowMeasureCounts?.filter((count) => Number.isInteger(count) && count > 0) || [];
@@ -1974,7 +2048,6 @@
       const left = (row instanceof HTMLElement ? row.offsetLeft : 0) + measure.offsetLeft - els.scoreFrame.clientWidth * .38;
       els.scoreFrame.scrollTo({ left: Math.max(0, left), behavior });
 
-      if (!state.followEnabled) return;
       const system = measure.closest(".score-system");
       if (!(system instanceof HTMLElement)) return;
       const rowIndex = Number(system.dataset.rowIndex);
@@ -2229,7 +2302,7 @@
     }
 
     async function requestWakeLock() {
-      if (!state.followEnabled || !navigator.wakeLock || state.wakeLock) return;
+      if (!navigator.wakeLock || state.wakeLock) return;
       try {
         state.wakeLock = await navigator.wakeLock.request("screen");
         state.wakeLock.addEventListener("release", () => { state.wakeLock = null; }, { once: true });
@@ -2319,12 +2392,10 @@
       updateHighlight(-1, false, 0);
       if (resetScroll) {
         els.scoreFrame.scrollTo({ left: 0, behavior: "smooth" });
-        if (state.followEnabled) {
-          const firstSystem = els.scorePaper.querySelector(".score-system");
-          if (firstSystem instanceof HTMLElement) {
-            const top = window.scrollY + firstSystem.getBoundingClientRect().top - 76;
-            window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
-          }
+        const firstSystem = els.scorePaper.querySelector(".score-system");
+        if (firstSystem instanceof HTMLElement) {
+          const top = window.scrollY + firstSystem.getBoundingClientRect().top - 76;
+          window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
         }
       }
     }
@@ -2566,19 +2637,6 @@
       els.mixValue.textContent = `三味線 ${100 - state.balance}％・唄 ${state.balance}％`;
       updateMix();
     });
-    els.followToggle.addEventListener("change", () => {
-      state.followEnabled = els.followToggle.checked;
-      state.lastFollowedRow = -1;
-      if (state.followEnabled) {
-        const measureIndex = measureIndexForBeat(currentBeat());
-        const measure = els.scorePaper.querySelector(`.measure[data-measure="${measureIndex}"]`);
-        if (measure instanceof HTMLElement) scrollToCurrentSystem(measure);
-        if (state.isPlaying) void requestWakeLock();
-      } else {
-        void releaseWakeLock();
-      }
-      showToast(state.followEnabled ? "演奏に合わせて譜面を自動で送ります。" : "譜面の自動送りを停止しました。");
-    });
     els.layerOptions.addEventListener("change", (event) => {
       const input = event.target;
       if (!(input instanceof HTMLInputElement) || input.type !== "checkbox") return;
@@ -2610,7 +2668,7 @@
       showToast(state.soundEnabled ? "三味線と唄の音を鳴らします。" : "演奏音を消しました。");
     });
     els.homeButton.addEventListener("click", () => showToast("試作版のため、ホームへのリンクはまだ接続していません。"));
-    els.helpButton.addEventListener("click", () => showToast("本数とテンポを選んで再生してください。唄の音程がある譜面では音量バランスも調整できます。"));
+    els.helpButton.addEventListener("click", () => showToast("本数とテンポを選んで再生してください。譜面は演奏位置へ自動で移動し、唄がある場合は音量バランスも調整できます。"));
 
     document.addEventListener("visibilitychange", () => {
       if (document.hidden && state.isPlaying) {
