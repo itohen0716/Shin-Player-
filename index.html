@@ -90,7 +90,7 @@
     .score-summary {
       position: relative;
       overflow: hidden;
-      padding: 16px 20px 0;
+      padding: 16px 20px;
     }
 
     .score-summary::after {
@@ -151,15 +151,13 @@
       font-weight: 700;
     }
 
-    .import-row {
-      position: relative;
-      z-index: 2;
+    .display-import-row {
       display: grid;
-      grid-template-columns: minmax(190px, 1fr) minmax(300px, 330px) auto;
+      grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
-      gap: 12px;
-      margin-top: 4px;
-      padding-top: 0;
+      gap: 10px;
+      margin-top: 7px;
+      padding-top: 6px;
       border-top: 1px dashed var(--line);
       font-family: system-ui, sans-serif;
     }
@@ -184,6 +182,7 @@
     .control-grid {
       display: grid;
       grid-template-columns: 1fr;
+      align-items: stretch;
       gap: 12px;
       margin-top: 7px;
     }
@@ -246,10 +245,19 @@
       grid-template-columns: auto minmax(90px, 1fr) auto;
       align-items: center;
       gap: 7px;
-      margin-top: 3px;
-      padding-top: 3px;
+      margin-top: 5px;
+      padding-top: 5px;
       border-top: 1px dashed rgba(178,153,123,.5);
       font-family: system-ui, sans-serif;
+    }
+
+    .mix-heading {
+      grid-column: 1 / -1;
+      margin: 0;
+      color: var(--brown-dark);
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.2;
     }
 
     .mix-label { color: var(--brown-dark); font-size: 11px; font-weight: 700; white-space: nowrap; }
@@ -274,11 +282,6 @@
 
     .layer-card {
       min-width: 0;
-      padding: 4px 8px;
-      border: 1px solid rgba(178, 153, 123, .5);
-      border-radius: 16px;
-      background: rgba(255, 253, 247, .96);
-      box-shadow: 0 4px 12px rgba(73, 49, 32, .08);
     }
 
     .layer-card-head {
@@ -289,13 +292,13 @@
       margin-bottom: 2px;
     }
 
-    .layer-card .section-label { margin: 0; font-size: 13px; line-height: 1.25; }
+    .layer-card .section-label { margin: 0; font-size: 15px; line-height: 1.25; }
 
     .layer-help {
       margin: 0;
       color: var(--muted);
       font-family: system-ui, sans-serif;
-      font-size: 9.5px;
+      font-size: 10.5px;
       line-height: 1.2;
       white-space: nowrap;
     }
@@ -574,6 +577,11 @@
     }
 
     .writing-layer-svg.writing-layer-underlay { z-index: 1; }
+
+    .score-layer-hidden {
+      visibility: hidden;
+      pointer-events: none;
+    }
 
     .measure {
       position: relative;
@@ -874,29 +882,17 @@
     @media (min-width: 720px) {
       .app-shell { padding: 0 24px 132px; }
       .control-grid { grid-template-columns: 1fr 1fr; }
-      .score-summary { padding: 16px 22px 0; }
+      .number-card { grid-column: 1 / -1; }
+      .score-summary { min-height: 150px; padding: 16px 22px; }
       .summary-main { min-height: 98px; padding-right: 150px; }
       .summary-shami { top: 4px; right: 12px; width: 142px; height: 142px; }
       .number-selector { grid-template-columns: repeat(8, 1fr); }
-      .import-row {
-        width: calc(100% - 158px);
-        grid-template-columns: minmax(140px, 1fr) minmax(210px, 260px) auto;
-        gap: 10px;
-      }
-      .layer-card { width: 100%; }
-    }
-
-    @media (max-width: 759px) {
-      .import-row { grid-template-columns: minmax(0, 1fr) auto; }
-      .layer-card { grid-column: 1 / -1; grid-row: 2; }
-      .file-button { grid-column: 2; grid-row: 1; }
     }
 
     @media (max-width: 560px) {
       .summary-main { padding-right: 92px; }
       .summary-shami { width: 100px; height: 100px; }
-      .import-row { grid-template-columns: 1fr; }
-      .import-note, .layer-card, .file-button { grid-column: 1; grid-row: auto; }
+      .display-import-row { grid-template-columns: 1fr; }
       .file-button { width: 100%; }
       .layer-card-head { align-items: flex-start; }
       .layer-help { max-width: 45%; text-align: right; }
@@ -935,32 +931,21 @@
         </div>
       </div>
       <img class="summary-shami" src="assets/shami-playing.png" alt="" aria-hidden="true" width="1254" height="1254">
-      <div class="import-row">
-        <p class="import-note">保存したJSONを読み込むと、譜面と再生位置が切り替わります。</p>
-        <section class="layer-card hidden" id="optional-layer-card" aria-labelledby="optional-layer-label">
+    </section>
+
+    <div class="control-grid">
+      <section class="card control-card display-card" aria-label="譜面表示と読み込み">
+        <div class="layer-card hidden" id="optional-layer-card" aria-labelledby="optional-layer-label">
           <div class="layer-card-head">
             <h2 class="section-label" id="optional-layer-label">譜面に表示するもの</h2>
             <p class="layer-help">演奏内容は変わりません</p>
           </div>
           <div class="layer-options" id="layer-options"></div>
-        </section>
-        <button class="file-button" id="file-button" type="button">絲庵譜を読み込む</button>
-        <input id="file-input" type="file">
-      </div>
-    </section>
-
-    <div class="control-grid">
-      <section class="card control-card" aria-labelledby="number-label">
-        <h2 class="section-label" id="number-label">再生する本数</h2>
-        <div class="number-selector" id="number-selector" role="group" aria-label="再生する本数">
-          <button class="number-button" type="button" data-number="1" aria-pressed="false">一本</button>
-          <button class="number-button" type="button" data-number="2" aria-pressed="false">二本</button>
-          <button class="number-button" type="button" data-number="3" aria-pressed="false">三本</button>
-          <button class="number-button" type="button" data-number="4" aria-pressed="false">四本</button>
-          <button class="number-button" type="button" data-number="5" aria-pressed="false">五本</button>
-          <button class="number-button" type="button" data-number="6" aria-pressed="true">六本</button>
-          <button class="number-button" type="button" data-number="7" aria-pressed="false">七本</button>
-          <button class="number-button" type="button" data-number="8" aria-pressed="false">八本</button>
+        </div>
+        <div class="display-import-row">
+          <p class="import-note">保存したJSONを読み込むと、譜面と再生位置が切り替わります。</p>
+          <button class="file-button" id="file-button" type="button">絲庵譜を読み込む</button>
+          <input id="file-input" type="file">
         </div>
       </section>
 
@@ -976,10 +961,25 @@
         </div>
         <input class="tempo-slider" id="tempo-slider" type="range" min="40" max="160" step="1" value="80" aria-label="テンポ">
         <div class="mix-control hidden" id="mix-control" aria-label="三味線と唄の音量割合">
+          <h3 class="mix-heading">音量バランス</h3>
           <span class="mix-label">三味線</span>
           <input class="mix-slider" id="mix-slider" type="range" min="0" max="100" step="1" value="50" aria-label="三味線と唄の音量割合">
           <span class="mix-label">唄</span>
           <output class="mix-value" id="mix-value" for="mix-slider">三味線 50％・唄 50％</output>
+        </div>
+      </section>
+
+      <section class="card control-card number-card" aria-labelledby="number-label">
+        <h2 class="section-label" id="number-label">再生する本数</h2>
+        <div class="number-selector" id="number-selector" role="group" aria-label="再生する本数">
+          <button class="number-button" type="button" data-number="1" aria-pressed="false">一本</button>
+          <button class="number-button" type="button" data-number="2" aria-pressed="false">二本</button>
+          <button class="number-button" type="button" data-number="3" aria-pressed="false">三本</button>
+          <button class="number-button" type="button" data-number="4" aria-pressed="false">四本</button>
+          <button class="number-button" type="button" data-number="5" aria-pressed="false">五本</button>
+          <button class="number-button" type="button" data-number="6" aria-pressed="true">六本</button>
+          <button class="number-button" type="button" data-number="7" aria-pressed="false">七本</button>
+          <button class="number-button" type="button" data-number="8" aria-pressed="false">八本</button>
         </div>
       </section>
     </div>
@@ -1560,7 +1560,8 @@
     const ANNOTATION_SOURCE_ROW_PITCH = 124;
     const ANNOTATION_SOURCE_STRING_SPAN = 36;
     const LYRIC_SOURCE_FONT_SIZE = 19;
-    const COMMENT_MIN_FONT_SIZE = 17;
+    const COMMENT_PREVIOUS_MIN_FONT_SIZE = 17;
+    const COMMENT_MIN_FONT_SIZE = 20;
 
     function svgElement(name, attributes = {}) {
       const element = document.createElementNS(SVG_NAMESPACE, name);
@@ -1598,12 +1599,13 @@
       const systems = Array.from(els.scorePaper.querySelectorAll(".score-system"));
       if (!(row instanceof HTMLElement) || systems.length === 0) {
         const identity = (_item, x, y) => ({ x: finiteNumber(x), y: finiteNumber(y) });
-        return { mapPoint: (x, y) => identity(null, x, y), mapItemPoint: identity, scaleX: 1 };
+        return { mapPoint: (x, y) => identity(null, x, y), mapItemPoint: identity, scaleX: 1, rowRight: 864 };
       }
       const paperRect = els.scorePaper.getBoundingClientRect();
       const rowRect = row.getBoundingClientRect();
       const scaleX = rowRect.width / (ANNOTATION_SOURCE_RIGHT - ANNOTATION_SOURCE_LEFT);
       const rowLeft = rowRect.left - paperRect.left;
+      const rowRight = rowLeft + rowRect.width;
 
       function destinationStringBounds(rowIndex) {
         const system = systems[rowIndex];
@@ -1668,7 +1670,7 @@
         return mapPoint(x, y);
       }
 
-      return { mapPoint, mapItemPoint, scaleX };
+      return { mapPoint, mapItemPoint, scaleX, rowRight };
     }
 
     function normalizedPoints(item) {
@@ -1678,6 +1680,54 @@
         if (point && typeof point === "object") return { x: finiteNumber(point.x), y: finiteNumber(point.y) };
         return null;
       }).filter(Boolean);
+    }
+
+    function commentCharacterUnits(character) {
+      if (character === " " || character === "　") return .45;
+      return /^[\x21-\x7e]$/.test(character) ? .58 : 1;
+    }
+
+    function commentLineUnits(line) {
+      return Array.from(line).reduce((total, character) => total + commentCharacterUnits(character), 0);
+    }
+
+    function wrapCommentLines(value, maxWidth, fontSize) {
+      const maxUnits = Math.max(2, maxWidth / Math.max(1, fontSize));
+      return String(value || "").replace(/\r\n?/g, "\n").split("\n").flatMap((sourceLine) => {
+        if (!sourceLine) return [""];
+        const lines = [];
+        let line = "";
+        let units = 0;
+        Array.from(sourceLine).forEach((character) => {
+          const characterUnits = commentCharacterUnits(character);
+          if (line && units + characterUnits > maxUnits) {
+            lines.push(line);
+            line = character;
+            units = characterUnits;
+          } else {
+            line += character;
+            units += characterUnits;
+          }
+        });
+        if (line || !lines.length) lines.push(line);
+        return lines;
+      });
+    }
+
+    function commentLayout(item, coordinateMapper) {
+      const mappedPoint = coordinateMapper.mapItemPoint(item, item.x, item.y);
+      const previousFontSize = Math.max(COMMENT_PREVIOUS_MIN_FONT_SIZE, finiteNumber(item.size, 16) * coordinateMapper.scaleX);
+      const fontSize = Math.max(COMMENT_MIN_FONT_SIZE, finiteNumber(item.size, 16) * coordinateMapper.scaleX);
+      const point = { ...mappedPoint, y: mappedPoint.y + Math.max(0, fontSize - previousFontSize) * .8 };
+      const availableWidth = Math.max(fontSize * 2, coordinateMapper.rowRight - point.x - 8);
+      const lines = wrapCommentLines(item.text, availableWidth, fontSize);
+      return {
+        point,
+        fontSize,
+        lines,
+        lineHeight: fontSize * 1.28,
+        textWidth: Math.min(availableWidth, Math.max(fontSize * 2.5, ...lines.map((line) => commentLineUnits(line) * fontSize)))
+      };
     }
 
     function appendWritingItem(svg, item, coordinateMapper, markerId) {
@@ -1724,17 +1774,13 @@
       }
 
       if (type === "text" || type === "comment") {
-        const point = mapPoint(item.x, item.y);
-        const fontSize = Math.max(COMMENT_MIN_FONT_SIZE, finiteNumber(item.size, 16) * scaleX);
-        const lines = String(item.text || "").replace(/\r\n?/g, "\n").split("\n");
-        const lineHeight = fontSize * 1.35;
-        const longest = Math.max(1, ...lines.map((line) => Array.from(line).length));
+        const { point, fontSize, lines, lineHeight, textWidth } = commentLayout(item, coordinateMapper);
         const background = String(item.background || "none");
         if (background !== "none") {
           svg.append(svgElement("rect", {
             x: point.x - 6,
             y: point.y - fontSize * 1.08 - 4,
-            width: Math.max(fontSize * 2.5, longest * fontSize * .95) + 12,
+            width: textWidth + 12,
             height: fontSize * 1.5 + (lines.length - 1) * lineHeight,
             rx: 6,
             fill: background === "translucent" ? "rgba(255,255,255,.72)" : "#fff",
@@ -1783,10 +1829,8 @@
       const type = String(item?.type || "").toLowerCase();
       const map = (x, y) => coordinateMapper.mapItemPoint(item, x, y);
       if (type === "text" || type === "comment") {
-        const point = map(item.x, item.y);
-        const fontSize = Math.max(COMMENT_MIN_FONT_SIZE, finiteNumber(item.size, 16) * coordinateMapper.scaleX);
-        const lineCount = String(item.text || "").replace(/\r\n?/g, "\n").split("\n").length;
-        return point.y + (lineCount - 1) * fontSize * 1.35 + fontSize * .5;
+        const { point, fontSize, lines, lineHeight } = commentLayout(item, coordinateMapper);
+        return point.y + (lines.length - 1) * lineHeight + fontSize * .5;
       }
       const points = normalizedPoints(item);
       if (points.length) return Math.max(...points.map((point) => map(point.x, point.y).y)) + 8;
@@ -1905,13 +1949,15 @@
       let measureIndex = 0;
       rowCounts.forEach((rowCount, rowIndex) => {
         const rowStartMeasure = measureIndex;
-        const showLyrics = state.lyricsVisible && hasLyrics();
-        const showVocal = state.vocalVisible && hasVocalNotes();
+        const hasLyricsData = hasLyrics();
+        const hasVocalData = hasVocalNotes();
+        const showLyrics = state.lyricsVisible && hasLyricsData;
+        const showVocal = state.vocalVisible && hasVocalData;
         const system = document.createElement("div");
         system.className = "score-system";
         system.dataset.rowIndex = String(rowIndex);
-        system.classList.toggle("has-lyrics", showLyrics);
-        system.classList.toggle("has-vocal", showVocal);
+        system.classList.toggle("has-lyrics", hasLyricsData);
+        system.classList.toggle("has-vocal", hasVocalData);
 
         const labels = document.createElement("div");
         labels.className = "string-labels";
@@ -1987,28 +2033,36 @@
         }
         system.append(row);
 
-        if (showLyrics) {
+        if (hasLyricsData) {
           const lyricLabel = document.createElement("span");
           lyricLabel.className = "lyrics-label";
           lyricLabel.textContent = "歌詞";
           const lyricLine = document.createElement("span");
           lyricLine.className = "lyrics-line";
           lyricLine.textContent = typeof state.lyrics[rowIndex] === "string" ? state.lyrics[rowIndex] : "";
+          lyricLabel.classList.toggle("score-layer-hidden", !showLyrics);
+          lyricLine.classList.toggle("score-layer-hidden", !showLyrics);
+          lyricLabel.setAttribute("aria-hidden", String(!showLyrics));
+          lyricLine.setAttribute("aria-hidden", String(!showLyrics));
           system.append(lyricLabel, lyricLine);
         }
 
-        if (showVocal) {
-          const vocalGridRow = showLyrics ? "3" : "2";
+        if (hasVocalData) {
+          const vocalGridRow = hasLyricsData ? "3" : "2";
           const vocalLabel = document.createElement("span");
           vocalLabel.className = "vocal-label";
           vocalLabel.style.gridRow = vocalGridRow;
           vocalLabel.textContent = "唄";
+          vocalLabel.classList.toggle("score-layer-hidden", !showVocal);
+          vocalLabel.setAttribute("aria-hidden", String(!showVocal));
 
           const vocalTrack = document.createElement("div");
           vocalTrack.className = "vocal-track";
           vocalTrack.dataset.row = String(rowIndex);
           vocalTrack.style.gridRow = vocalGridRow;
           vocalTrack.style.gridTemplateColumns = columnWidths.map((width) => `minmax(${width}px, 1fr)`).join(" ");
+          vocalTrack.classList.toggle("score-layer-hidden", !showVocal);
+          vocalTrack.setAttribute("aria-hidden", String(!showVocal));
           for (let column = 0; column < rowCount; column += 1) {
             const vocalMeasure = document.createElement("div");
             vocalMeasure.className = "vocal-measure";
