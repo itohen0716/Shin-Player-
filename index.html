@@ -1572,6 +1572,10 @@
     const SCORE_PAPER_BASE_WIDTH = 864;
     const SCORE_SOURCE_WIDTH = ANNOTATION_SOURCE_RIGHT - ANNOTATION_SOURCE_LEFT;
     const SCORE_FIXED_HORIZONTAL_WIDTH = 66;
+    const SCORE_PANEL_SIDE_GAP = 24;
+    const SCORE_RESPONSIVE_BREAKPOINT = 720;
+    const SCORE_RESPONSIVE_MIN_WIDTH = 640;
+    let lastScoreFrameWidth = 0;
 
     function svgElement(name, attributes = {}) {
       const element = document.createElementNS(SVG_NAMESPACE, name);
@@ -1609,7 +1613,13 @@
       const systems = Array.from(els.scorePaper.querySelectorAll(".score-system"));
       if (!(row instanceof HTMLElement) || systems.length === 0) {
         const identity = (_item, x, y) => ({ x: finiteNumber(x), y: finiteNumber(y) });
-        return { mapPoint: (x, y) => identity(null, x, y), mapItemPoint: identity, scaleX: 1, rowRight: SCORE_PAPER_BASE_WIDTH - 14 };
+        return {
+          mapPoint: (x, y) => identity(null, x, y),
+          mapItemPoint: identity,
+          scaleX: 1,
+          rowLeft: 14,
+          rowRight: SCORE_PAPER_BASE_WIDTH - 14
+        };
       }
       const paperRect = els.scorePaper.getBoundingClientRect();
       const rowRect = row.getBoundingClientRect();
@@ -1798,7 +1808,7 @@
         return mapPoint(x, y);
       }
 
-      return { mapPoint, mapItemPoint, scaleX, rowRight };
+      return { mapPoint, mapItemPoint, scaleX, rowLeft, rowRight };
     }
 
     function normalizedPoints(item) {
@@ -1845,15 +1855,30 @@
     function commentLayout(item, coordinateMapper) {
       const mappedPoint = coordinateMapper.mapItemPoint(item, item.x, item.y);
       const fontSize = Math.max(COMMENT_MIN_FONT_SIZE, finiteNumber(item.size, 16) * coordinateMapper.scaleX);
-      const point = mappedPoint;
-      const availableWidth = Math.max(fontSize * 2, coordinateMapper.rowRight - point.x - 8);
-      const lines = wrapCommentLines(item.text, availableWidth, fontSize);
+      const rowLeft = finiteNumber(coordinateMapper.rowLeft, 14);
+      const rowRight = finiteNumber(coordinateMapper.rowRight, SCORE_PAPER_BASE_WIDTH - 14);
+      const availableWidth = Math.max(fontSize * 2, rowRight - rowLeft - 16);
+      const sourceLines = String(item.text || "").replace(/\r\n?/g, "\n").split("\n");
+      const sourceWidth = Math.max(0, ...sourceLines.map((line) => commentLineUnits(line) * fontSize));
+      const lines = sourceWidth <= availableWidth
+        ? sourceLines
+        : wrapCommentLines(item.text, availableWidth, fontSize);
+      const textWidth = Math.min(
+        availableWidth,
+        Math.max(fontSize * 2.5, ...lines.map((line) => commentLineUnits(line) * fontSize))
+      );
+      const leftLimit = rowLeft + 8;
+      const rightLimit = Math.max(leftLimit, rowRight - textWidth - 8);
+      const point = {
+        x: Math.max(leftLimit, Math.min(mappedPoint.x, rightLimit)),
+        y: mappedPoint.y
+      };
       return {
         point,
         fontSize,
         lines,
         lineHeight: fontSize * 1.28,
-        textWidth: Math.min(availableWidth, Math.max(fontSize * 2.5, ...lines.map((line) => commentLineUnits(line) * fontSize)))
+        textWidth
       };
     }
 
@@ -2045,6 +2070,14 @@
       return Math.max(240, contentWidth + offset);
     }
 
+    function scorePaperWidth(widestRow) {
+      const contentWidth = Math.max(SCORE_PAPER_BASE_WIDTH, widestRow + SCORE_FIXED_HORIZONTAL_WIDTH);
+      if (window.innerWidth < SCORE_RESPONSIVE_BREAKPOINT) return contentWidth;
+      const frameWidth = els.scoreFrame.clientWidth;
+      if (!Number.isFinite(frameWidth) || frameWidth <= SCORE_PANEL_SIDE_GAP) return contentWidth;
+      return Math.max(SCORE_RESPONSIVE_MIN_WIDTH, Math.floor(frameWidth - SCORE_PANEL_SIDE_GAP));
+    }
+
     function renderScore() {
       els.scorePaper.replaceChildren();
       els.scorePaper.style.minHeight = "";
@@ -2072,10 +2105,11 @@
         }
         widestRow = Math.max(widestRow, rowWidth);
       });
-      const paperWidth = Math.max(SCORE_PAPER_BASE_WIDTH, widestRow + SCORE_FIXED_HORIZONTAL_WIDTH);
+      const paperWidth = scorePaperWidth(widestRow);
       els.scorePaper.style.width = `${paperWidth}px`;
       els.scorePaper.style.minWidth = `${paperWidth}px`;
       state.scoreScaleX = Math.max(.1, (paperWidth - SCORE_FIXED_HORIZONTAL_WIDTH) / SCORE_SOURCE_WIDTH);
+      lastScoreFrameWidth = els.scoreFrame.clientWidth;
 
       const sheetHead = document.createElement("div");
       sheetHead.className = "score-sheet-head";
@@ -2891,6 +2925,17 @@
         void releaseWakeLock();
         els.positionText.textContent = "画面を離れたため一時停止しました";
       }
+    });
+
+    let scoreResizeTimer = 0;
+    window.addEventListener("resize", () => {
+      window.clearTimeout(scoreResizeTimer);
+      scoreResizeTimer = window.setTimeout(() => {
+        const nextFrameWidth = els.scoreFrame.clientWidth;
+        if (Math.abs(nextFrameWidth - lastScoreFrameWidth) < 2) return;
+        state.lastFollowedRow = -1;
+        renderScore();
+      }, 120);
     });
 
     window.addEventListener("pagehide", () => {
