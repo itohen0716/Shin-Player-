@@ -470,11 +470,12 @@
       align-self: stretch;
       overflow: hidden;
       min-width: 0;
-      padding-top: 2px;
+      padding: 2px 0 0 8px;
       border-bottom: 1px solid #d7c3ad;
       color: #5c4639;
-      font-size: 17px;
+      font-size: 18px;
       font-weight: 500;
+      letter-spacing: -2px;
       line-height: 25px;
       white-space: pre;
     }
@@ -1028,7 +1029,7 @@
     /** @typedef {{m:number,s:number,p:number,text:string}} ScoreMark */
     /** @typedef {{id:string,m:number,s:number,p:number,d:number,v:string,kind:"pitch"|"rest"|"interjection",color:string,x:number}} VocalNote */
     /** @typedef {{id:string,name:string,visible:boolean,items:Array<Record<string,unknown>>}} OptionalLayer */
-    /** @typedef {{format?:string,score:{title?:string,tuning?:string,meter?:string,notes:Array<Record<string,unknown>>,vocalNotes?:Array<Record<string,unknown>>,vocalSlurs?:Array<Record<string,unknown>>,vocalVisible?:boolean,layers?:Array<Record<string,unknown>>,lyrics?:string[],rows?:number,measuresPerRow?:number,rowMeasureCounts?:number[],annotationCoordVersion?:number}}} ScoreFile */
+    /** @typedef {{format?:string,score:{title?:string,tuning?:string,meter?:string,notes:Array<Record<string,unknown>>,vocalNotes?:Array<Record<string,unknown>>,vocalSlurs?:Array<Record<string,unknown>>,vocalVisible?:boolean,layers?:Array<Record<string,unknown>>,lyrics?:string[],rows?:number,measuresPerRow?:number,rowMeasureCounts?:number[],measureOffsets?:number[],annotationCoordVersion?:number}}} ScoreFile */
 
     const TUNING_MODE_ALIASES = Object.freeze({
       "本調子": "hon",
@@ -1119,6 +1120,8 @@
       rows: 4,
       measuresPerRow: 6,
       rowMeasureCounts: [6, 7, 7, 7],
+      measureOffsets: [],
+      scoreScaleX: 798 / 948,
       lyrics: DEMO_LYRICS,
       lyricsVisible: true,
       vocalNotes: /** @type {VocalNote[]} */ ([]),
@@ -1408,9 +1411,13 @@
 
     function symbolLeft(event) {
       const measureUnits = displayUnitsForMeasure(event.m);
-      const centeredPosition = (event.p + event.d / 2) / measureUnits;
+      const centeredPosition = (event.p + .5) / measureUnits;
       const percentage = Math.min(97, Math.max(3, centeredPosition * 100));
       return `${percentage}%`;
+    }
+
+    function symbolPosition(event) {
+      return `calc(${symbolLeft(event)} + ${finiteNumber(event.x) * state.scoreScaleX}px)`;
     }
 
     function minimumWidthForMeasure(measureIndex) {
@@ -1429,15 +1436,16 @@
       return "";
     }
 
-    function vocalLeft(note) {
+    function vocalPosition(note) {
       const anchor = note.anchor && state.events.find((event) => event.m === note.anchor.m && event.p === note.anchor.p);
       if (anchor) {
-        const anchorPercent = Number.parseFloat(symbolLeft(anchor));
-        const offsetPercent = finiteNumber(note.anchorOffset) / displayUnitsForMeasure(anchor.m) * 100;
-        return `${Math.min(97, Math.max(3, anchorPercent + offsetPercent))}%`;
+        const measureUnits = displayUnitsForMeasure(anchor.m);
+        const percentage = Math.min(97, Math.max(3, (anchor.p + finiteNumber(note.anchorOffset) + .5) / measureUnits * 100));
+        return `calc(${percentage}% + ${(finiteNumber(anchor.x) + finiteNumber(note.x)) * state.scoreScaleX}px)`;
       }
       const measureUnits = displayUnitsForMeasure(note.m);
-      return `${Math.min(97, Math.max(3, (note.p + .5) / measureUnits * 100))}%`;
+      const percentage = Math.min(97, Math.max(3, (note.p + .5) / measureUnits * 100));
+      return `calc(${percentage}% + ${finiteNumber(note.x) * state.scoreScaleX}px)`;
     }
 
     function appendVocalNote(measure, note) {
@@ -1446,7 +1454,7 @@
       item.dataset.vocalId = note.id;
       item.dataset.duration = String(note.d);
       item.dataset.kind = note.kind;
-      item.style.left = `calc(${vocalLeft(note)} + ${finiteNumber(note.x)}px)`;
+      item.style.left = vocalPosition(note);
       item.style.setProperty("--vocal-color", note.color);
       const label = note.kind === "rest" ? "唄の休符" : note.kind === "interjection" ? "唄の合いの手" : "唄の音程";
       item.setAttribute("aria-label", `${label} ${note.v}`);
@@ -1560,8 +1568,10 @@
     const ANNOTATION_SOURCE_ROW_PITCH = 124;
     const ANNOTATION_SOURCE_STRING_SPAN = 36;
     const LYRIC_SOURCE_FONT_SIZE = 19;
-    const COMMENT_PREVIOUS_MIN_FONT_SIZE = 17;
     const COMMENT_MIN_FONT_SIZE = 20;
+    const SCORE_PAPER_BASE_WIDTH = 864;
+    const SCORE_SOURCE_WIDTH = ANNOTATION_SOURCE_RIGHT - ANNOTATION_SOURCE_LEFT;
+    const SCORE_FIXED_HORIZONTAL_WIDTH = 66;
 
     function svgElement(name, attributes = {}) {
       const element = document.createElementNS(SVG_NAMESPACE, name);
@@ -1599,13 +1609,131 @@
       const systems = Array.from(els.scorePaper.querySelectorAll(".score-system"));
       if (!(row instanceof HTMLElement) || systems.length === 0) {
         const identity = (_item, x, y) => ({ x: finiteNumber(x), y: finiteNumber(y) });
-        return { mapPoint: (x, y) => identity(null, x, y), mapItemPoint: identity, scaleX: 1, rowRight: 864 };
+        return { mapPoint: (x, y) => identity(null, x, y), mapItemPoint: identity, scaleX: 1, rowRight: SCORE_PAPER_BASE_WIDTH - 14 };
       }
       const paperRect = els.scorePaper.getBoundingClientRect();
       const rowRect = row.getBoundingClientRect();
       const scaleX = rowRect.width / (ANNOTATION_SOURCE_RIGHT - ANNOTATION_SOURCE_LEFT);
       const rowLeft = rowRect.left - paperRect.left;
       const rowRight = rowLeft + rowRect.width;
+
+      const anchorsByRow = new Map();
+      state.optionalLayers.forEach((layer) => {
+        layer.items.forEach((item) => {
+          const layoutRow = Number(item?.layoutRow);
+          const layoutOffsetY = Number(item?.layoutOffsetY);
+          if (!Number.isInteger(layoutRow) || layoutRow < 0 || !Number.isFinite(layoutOffsetY)) return;
+          const anchor = writingItemCenterY(item) - layoutOffsetY;
+          if (!Number.isFinite(anchor)) return;
+          const values = anchorsByRow.get(layoutRow) || [];
+          values.push(anchor);
+          anchorsByRow.set(layoutRow, values);
+        });
+      });
+
+      function median(values) {
+        if (!values.length) return NaN;
+        const sorted = [...values].sort((a, b) => a - b);
+        const middle = Math.floor(sorted.length / 2);
+        return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+      }
+
+      const knownAnchors = [...anchorsByRow.entries()]
+        .map(([rowIndex, values]) => ({ rowIndex, anchor: median(values) }))
+        .filter((entry) => Number.isFinite(entry.anchor))
+        .sort((a, b) => a.rowIndex - b.rowIndex);
+      const pitchSamples = [];
+      for (let index = 1; index < knownAnchors.length; index += 1) {
+        const rowDistance = knownAnchors[index].rowIndex - knownAnchors[index - 1].rowIndex;
+        if (rowDistance > 0) pitchSamples.push((knownAnchors[index].anchor - knownAnchors[index - 1].anchor) / rowDistance);
+      }
+      const sourceRowPitch = Number.isFinite(median(pitchSamples)) ? median(pitchSamples) : ANNOTATION_SOURCE_ROW_PITCH;
+      const sourceAnchorBaseSamples = knownAnchors.map((entry) => entry.anchor - entry.rowIndex * sourceRowPitch);
+      const sourceAnchorBase = Number.isFinite(median(sourceAnchorBaseSamples))
+        ? median(sourceAnchorBaseSamples)
+        : ANNOTATION_SOURCE_FIRST_ROW_START;
+      const sourceFirstStringLocal = Math.max(-4, Math.min(18, ANNOTATION_SOURCE_FIRST_STRING_Y - sourceAnchorBase));
+      const sourceLastStringLocal = sourceFirstStringLocal + ANNOTATION_SOURCE_STRING_SPAN;
+      const sourceScoreBottom = sourceFirstStringLocal + 45;
+      const sourceLyricsTop = sourceScoreBottom + 8;
+      const sourceLyricsBottom = sourceLyricsTop + 32;
+      const sourceVocalTop = (hasLyrics() ? sourceLyricsBottom : sourceScoreBottom) + 2;
+      const sourceVocalBottom = sourceVocalTop + 50;
+
+      const verticalStops = [];
+      systems.forEach((system, rowIndex) => {
+        if (!(system instanceof HTMLElement)) return;
+        const systemRect = system.getBoundingClientRect();
+        const systemTop = systemRect.top - paperRect.top;
+        const sourceAnchor = sourceAnchorBase + rowIndex * sourceRowPitch;
+        const destination = destinationStringBounds(rowIndex);
+        const scoreRow = system.querySelector(".score-row");
+        const scoreBottom = scoreRow instanceof HTMLElement ? scoreRow.getBoundingClientRect().bottom - paperRect.top : systemTop + 105;
+        verticalStops.push(
+          { source: sourceAnchor, destination: systemTop },
+          { source: sourceAnchor + sourceFirstStringLocal, destination: destination.top },
+          { source: sourceAnchor + sourceLastStringLocal, destination: destination.bottom },
+          { source: sourceAnchor + sourceScoreBottom, destination: scoreBottom }
+        );
+        const lyrics = system.querySelector(".lyrics-line");
+        if (lyrics instanceof HTMLElement) {
+          const lyricsRect = lyrics.getBoundingClientRect();
+          verticalStops.push(
+            { source: sourceAnchor + sourceLyricsTop, destination: lyricsRect.top - paperRect.top },
+            { source: sourceAnchor + sourceLyricsBottom, destination: lyricsRect.bottom - paperRect.top }
+          );
+        }
+        const vocal = system.querySelector(".vocal-track");
+        if (vocal instanceof HTMLElement) {
+          const vocalRect = vocal.getBoundingClientRect();
+          verticalStops.push(
+            { source: sourceAnchor + sourceVocalTop, destination: vocalRect.top - paperRect.top },
+            { source: sourceAnchor + sourceVocalBottom, destination: vocalRect.bottom - paperRect.top }
+          );
+        }
+        verticalStops.push({ source: sourceAnchor + sourceRowPitch, destination: systemRect.bottom - paperRect.top });
+      });
+      verticalStops.sort((a, b) => a.source - b.source || a.destination - b.destination);
+
+      function mappedAnchoredCenterY(sourceY) {
+        if (!verticalStops.length) return finiteNumber(sourceY);
+        if (sourceY <= verticalStops[0].source) {
+          const first = verticalStops[0];
+          const second = verticalStops[1] || first;
+          const scale = second.source !== first.source ? (second.destination - first.destination) / (second.source - first.source) : 1;
+          return first.destination + (sourceY - first.source) * scale;
+        }
+        for (let index = 1; index < verticalStops.length; index += 1) {
+          const previous = verticalStops[index - 1];
+          const next = verticalStops[index];
+          if (sourceY > next.source) continue;
+          if (next.source === previous.source) return next.destination;
+          const ratio = (sourceY - previous.source) / (next.source - previous.source);
+          return previous.destination + ratio * (next.destination - previous.destination);
+        }
+        const last = verticalStops[verticalStops.length - 1];
+        const previous = verticalStops[verticalStops.length - 2] || last;
+        const scale = last.source !== previous.source ? (last.destination - previous.destination) / (last.source - previous.source) : 1;
+        return last.destination + (sourceY - last.source) * scale;
+      }
+
+      function anchoredItemScaleY(rowIndex, layoutOffsetY) {
+        const system = systems[rowIndex];
+        if (!(system instanceof HTMLElement)) return scaleX;
+        const destination = destinationStringBounds(rowIndex);
+        if (layoutOffsetY <= sourceScoreBottom) {
+          return Math.max(.1, (destination.bottom - destination.top) / ANNOTATION_SOURCE_STRING_SPAN);
+        }
+        const lyrics = system.querySelector(".lyrics-line");
+        if (lyrics instanceof HTMLElement && layoutOffsetY <= sourceLyricsBottom) {
+          return Math.max(.1, lyrics.getBoundingClientRect().height / 32);
+        }
+        const vocal = system.querySelector(".vocal-track");
+        if (vocal instanceof HTMLElement && layoutOffsetY <= sourceVocalBottom) {
+          return Math.max(.1, vocal.getBoundingClientRect().height / 50);
+        }
+        return Math.max(.1, system.getBoundingClientRect().height / sourceRowPitch);
+      }
 
       function destinationStringBounds(rowIndex) {
         const system = systems[rowIndex];
@@ -1659,12 +1787,12 @@
         const layoutRow = Number(item?.layoutRow);
         const layoutOffsetY = Number(item?.layoutOffsetY);
         if (Number.isInteger(layoutRow) && layoutRow >= 0 && layoutRow < systems.length && Number.isFinite(layoutOffsetY)) {
-          const system = systems[layoutRow];
-          const systemRect = system.getBoundingClientRect();
           const centerY = writingItemCenterY(item);
+          const sourceCenterY = sourceAnchorBase + layoutRow * sourceRowPitch + layoutOffsetY;
+          const scaleY = anchoredItemScaleY(layoutRow, layoutOffsetY);
           return {
             x: rowLeft + (finiteNumber(x) - ANNOTATION_SOURCE_LEFT) * scaleX,
-            y: systemRect.top - paperRect.top + layoutOffsetY * scaleX + (finiteNumber(y) - centerY) * scaleX
+            y: mappedAnchoredCenterY(sourceCenterY) + (finiteNumber(y) - centerY) * scaleY
           };
         }
         return mapPoint(x, y);
@@ -1716,9 +1844,8 @@
 
     function commentLayout(item, coordinateMapper) {
       const mappedPoint = coordinateMapper.mapItemPoint(item, item.x, item.y);
-      const previousFontSize = Math.max(COMMENT_PREVIOUS_MIN_FONT_SIZE, finiteNumber(item.size, 16) * coordinateMapper.scaleX);
       const fontSize = Math.max(COMMENT_MIN_FONT_SIZE, finiteNumber(item.size, 16) * coordinateMapper.scaleX);
-      const point = { ...mappedPoint, y: mappedPoint.y + Math.max(0, fontSize - previousFontSize) * .8 };
+      const point = mappedPoint;
       const availableWidth = Math.max(fontSize * 2, coordinateMapper.rowRight - point.x - 8);
       const lines = wrapCommentLines(item.text, availableWidth, fontSize);
       return {
@@ -1894,9 +2021,28 @@
         if (!(line instanceof HTMLElement)) return;
         const row = line.parentElement?.querySelector(".score-row");
         const rowWidth = row instanceof HTMLElement ? row.getBoundingClientRect().width : 0;
-        const scaleX = rowWidth > 0 ? rowWidth / (ANNOTATION_SOURCE_RIGHT - ANNOTATION_SOURCE_LEFT) : 1;
-        line.style.fontSize = `${Math.max(16, LYRIC_SOURCE_FONT_SIZE * scaleX).toFixed(2)}px`;
+        const scaleX = rowWidth > 0 ? rowWidth / SCORE_SOURCE_WIDTH : 1;
+        const fontSize = Math.max(18, LYRIC_SOURCE_FONT_SIZE * scaleX);
+        line.style.fontSize = `${fontSize.toFixed(2)}px`;
+        line.style.letterSpacing = `${Math.min(0, 16 * scaleX - fontSize).toFixed(2)}px`;
+        line.style.paddingLeft = `${(8 * scaleX).toFixed(2)}px`;
       });
+    }
+
+    function measureWeight(measureIndex) {
+      const offset = Array.isArray(state.measureOffsets) ? finiteNumber(state.measureOffsets[measureIndex]) : 0;
+      const events = state.events.filter((event) => event.m === measureIndex);
+      const widestValue = events.reduce((maximum, event) => Math.max(
+        maximum,
+        ...event.n.map(([, value]) => String(value || "").length)
+      ), 1);
+      const occupiedPositions = new Set(events.map((event) => event.p)).size;
+      const contentWidth = Math.max(
+        384,
+        displayUnitsForMeasure(measureIndex) * 24,
+        occupiedPositions * 34 + widestValue * 10 + 48
+      );
+      return Math.max(240, contentWidth + offset);
     }
 
     function renderScore() {
@@ -1926,9 +2072,10 @@
         }
         widestRow = Math.max(widestRow, rowWidth);
       });
-      const paperWidth = Math.max(864, widestRow + 66);
+      const paperWidth = Math.max(SCORE_PAPER_BASE_WIDTH, widestRow + SCORE_FIXED_HORIZONTAL_WIDTH);
       els.scorePaper.style.width = `${paperWidth}px`;
       els.scorePaper.style.minWidth = `${paperWidth}px`;
+      state.scoreScaleX = Math.max(.1, (paperWidth - SCORE_FIXED_HORIZONTAL_WIDTH) / SCORE_SOURCE_WIDTH);
 
       const sheetHead = document.createElement("div");
       sheetHead.className = "score-sheet-head";
@@ -1968,8 +2115,8 @@
 
         const row = document.createElement("div");
         row.className = "score-row";
-        const columnWidths = Array.from({ length: rowCount }, (_, column) => minimumWidthForMeasure(measureIndex + column));
-        row.style.gridTemplateColumns = columnWidths.map((width) => `minmax(${width}px, 1fr)`).join(" ");
+        const columnWeights = Array.from({ length: rowCount }, (_, column) => measureWeight(measureIndex + column));
+        row.style.gridTemplateColumns = columnWeights.map((weight) => `minmax(0, ${weight}fr)`).join(" ");
         let lastMeasure = null;
         for (let column = 0; column < rowCount; column += 1) {
           const measure = document.createElement("div");
@@ -1983,7 +2130,7 @@
             event.n.forEach(([stringNumber, value]) => {
               const item = document.createElement("span");
               item.dataset.eventIndex = String(eventIndex);
-              item.style.left = symbolLeft(event);
+              item.style.left = symbolPosition(event);
               item.dataset.duration = String(event.d);
               if (stringNumber === 0) {
                 item.className = "score-symbol rest";
@@ -2011,7 +2158,7 @@
               const annotation = document.createElement("span");
               annotation.className = "score-annotation";
               annotation.dataset.string = String(annotationString(event));
-              annotation.style.left = symbolLeft(event);
+              annotation.style.left = symbolPosition(event);
               annotation.setAttribute("aria-label", marks.map((mark) => mark.text).join("、"));
               marks.forEach((mark) => {
                 const markElement = document.createElement("span");
@@ -2060,7 +2207,7 @@
           vocalTrack.className = "vocal-track";
           vocalTrack.dataset.row = String(rowIndex);
           vocalTrack.style.gridRow = vocalGridRow;
-          vocalTrack.style.gridTemplateColumns = columnWidths.map((width) => `minmax(${width}px, 1fr)`).join(" ");
+          vocalTrack.style.gridTemplateColumns = columnWeights.map((weight) => `minmax(0, ${weight}fr)`).join(" ");
           vocalTrack.classList.toggle("score-layer-hidden", !showVocal);
           vocalTrack.setAttribute("aria-hidden", String(!showVocal));
           for (let column = 0; column < rowCount; column += 1) {
@@ -2115,6 +2262,11 @@
       els.scorePaper.querySelectorAll(".is-playing").forEach((element) => element.classList.remove("is-playing"));
       els.scorePaper.querySelectorAll(".measure.is-current").forEach((element) => element.classList.remove("is-current"));
 
+      if (!state.isPlaying && beat <= .001) {
+        els.positionText.textContent = "先頭で停止中";
+        return;
+      }
+
       const event = state.events[index];
       if (event && beat >= eventStartBeat(event) - .001 && beat < eventStartBeat(event) + eventDurationBeat(event) - .001) {
         els.scorePaper.querySelectorAll(`[data-event-index="${index}"]`).forEach((element) => element.classList.add("is-playing"));
@@ -2126,11 +2278,6 @@
           if (element instanceof HTMLElement && element.dataset.vocalId === note.id) element.classList.add("is-playing");
         });
       });
-
-      if (!state.isPlaying && beat <= .001 && index < 0) {
-        els.positionText.textContent = "先頭で停止中";
-        return;
-      }
 
       const measureIndex = measureIndexForBeat(Math.max(0, beat));
       const measure = els.scorePaper.querySelector(`.measure[data-measure="${measureIndex}"]`);
@@ -2608,7 +2755,7 @@
         const key = `${note.m}:${note.p}`;
         const group = groups.get(key) || { m: note.m, p: note.p, d: note.d, n: [] };
         group.d = Math.min(group.d, note.d);
-        if (Number.isFinite(note.x) && !Number.isFinite(group.x)) group.x = note.x;
+        if (Number.isFinite(note.x) && note.x !== 0 && !Number.isFinite(group.x)) group.x = note.x;
         if (note.rest === true) group.n.push([0, "休"]);
         else if ([1, 2, 3].includes(note.s) && (typeof note.v === "string" || typeof note.v === "number")) {
           try {
@@ -2637,6 +2784,7 @@
         rows: Number.isInteger(score.rows) ? score.rows : 1,
         measuresPerRow: Number.isInteger(score.measuresPerRow) ? score.measuresPerRow : 6,
         rowMeasureCounts: Array.isArray(score.rowMeasureCounts) ? score.rowMeasureCounts : [],
+        measureOffsets: Array.isArray(score.measureOffsets) ? score.measureOffsets.map((value) => finiteNumber(value)) : [],
         lyrics,
         lyricsVisible: lyrics.some((line) => line.trim().length > 0),
         vocalNotes,
