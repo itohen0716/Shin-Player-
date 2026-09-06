@@ -473,6 +473,7 @@
       padding: 2px 0 0 8px;
       border-bottom: 1px solid #d7c3ad;
       color: #5c4639;
+      font-family: "Yu Gothic", "Noto Sans JP", sans-serif;
       font-size: 18px;
       font-weight: 500;
       letter-spacing: -2px;
@@ -628,11 +629,20 @@
       translate: -50% -50%;
       border-radius: 5px;
       color: #211a16;
-      background: #fffdfa;
+      background: transparent;
       font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
       font-size: 16px;
       font-weight: 500;
       transition: transform .15s ease, color .15s ease, background .15s ease, box-shadow .15s ease;
+    }
+
+    .score-symbol > span:first-child {
+      -webkit-text-stroke: .3px #fffdfa;
+      paint-order: stroke fill;
+    }
+
+    .score-symbol.is-playing > span:first-child {
+      -webkit-text-stroke: 0;
     }
 
     .score-symbol[data-string="3"] { top: 22px; }
@@ -2051,6 +2061,14 @@
         line.style.fontSize = `${fontSize.toFixed(2)}px`;
         line.style.letterSpacing = `${Math.min(0, 16 * scaleX - fontSize).toFixed(2)}px`;
         line.style.paddingLeft = `${(8 * scaleX).toFixed(2)}px`;
+
+        const characterGaps = Math.max(0, Array.from(line.textContent || "").length - 1);
+        const overflow = Math.max(0, line.scrollWidth - line.clientWidth);
+        if (characterGaps > 0 && overflow > .5) {
+          const currentSpacing = finiteNumber(parseFloat(line.style.letterSpacing));
+          const fittedSpacing = currentSpacing - (overflow + 1) / characterGaps;
+          line.style.letterSpacing = `${fittedSpacing.toFixed(2)}px`;
+        }
       });
     }
 
