@@ -450,6 +450,33 @@
       padding: 0;
     }
 
+    .tuplet-layer {
+      position: absolute;
+      z-index: 10;
+      top: -28px;
+      left: 0;
+      width: 100%;
+      height: 133px;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .tuplet-layer path {
+      fill: none;
+      stroke: #222;
+      stroke-width: 1.5px;
+      stroke-linecap: round;
+    }
+
+    .tuplet-layer text {
+      fill: #222;
+      stroke: #fffdfa;
+      stroke-width: 4px;
+      paint-order: stroke fill;
+      font: 700 13px Arial, sans-serif;
+      text-anchor: middle;
+    }
+
     .lyrics-label {
       z-index: 2;
       grid-column: 1;
@@ -532,6 +559,16 @@
       text-align: center;
     }
 
+    .vocal-note.is-dotted .vocal-note-value { margin-right: 4px; }
+
+    .vocal-dot {
+      position: absolute;
+      top: -2px;
+      left: calc(100% - 1px);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
     .vocal-note[data-duration="2"] .vocal-note-value::after,
     .vocal-note[data-duration="1"] .vocal-note-value::after {
       position: absolute;
@@ -606,6 +643,25 @@
     .measure::before { left: 0; }
     .measure:last-child::after { right: 0; }
     .measure.is-current { background: rgba(242,223,183,.35); box-shadow: inset 0 -2px 0 var(--gold); }
+
+    .measure-repeat {
+      position: absolute;
+      z-index: 5;
+      top: 22px;
+      left: 50%;
+      width: 34px;
+      height: 65px;
+      translate: -50% 0;
+      color: #211a16;
+      pointer-events: none;
+    }
+
+    .measure-repeat svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
 
     .string-line {
       position: absolute;
@@ -1037,9 +1093,11 @@
 
     /** @typedef {{m:number,p:number,d:number,n:Array<[number,string]>,technique?:string,x?:number}} DemoEvent */
     /** @typedef {{m:number,s:number,p:number,text:string}} ScoreMark */
-    /** @typedef {{id:string,m:number,s:number,p:number,d:number,v:string,kind:"pitch"|"rest"|"interjection",color:string,x:number}} VocalNote */
+    /** @typedef {{id:string,m:number,s:number,p:number,d:number,v:string,kind:"pitch"|"rest"|"interjection",color:string,x:number,dotted:boolean}} VocalNote */
+    /** @typedef {{id:string,type:"triplet",start:{m:number,s:number,p:number},end:{m:number,s:number,p:number},targetBeats:number}} Tuplet */
+    /** @typedef {{id:string,type:"measureRepeat",kind:"same1"|"same2",m:number,repeatCount:number}} MeasureRepeat */
     /** @typedef {{id:string,name:string,visible:boolean,items:Array<Record<string,unknown>>}} OptionalLayer */
-    /** @typedef {{format?:string,score:{title?:string,tuning?:string,meter?:string,notes:Array<Record<string,unknown>>,vocalNotes?:Array<Record<string,unknown>>,vocalSlurs?:Array<Record<string,unknown>>,vocalVisible?:boolean,layers?:Array<Record<string,unknown>>,lyrics?:string[],rows?:number,measuresPerRow?:number,rowMeasureCounts?:number[],measureOffsets?:number[],annotationCoordVersion?:number}}} ScoreFile */
+    /** @typedef {{format?:string,score:{title?:string,tuning?:string,meter?:string,notes:Array<Record<string,unknown>>,tuplets?:Array<Record<string,unknown>>,vocalNotes?:Array<Record<string,unknown>>,vocalSlurs?:Array<Record<string,unknown>>,vocalVisible?:boolean,scoreParts?:Array<Record<string,unknown>>,layers?:Array<Record<string,unknown>>,lyrics?:string[],rows?:number,measuresPerRow?:number,rowMeasureCounts?:number[],measureOffsets?:number[],annotationCoordVersion?:number}}} ScoreFile */
 
     const TUNING_MODE_ALIASES = Object.freeze({
       "本調子": "hon",
@@ -1118,6 +1176,9 @@
       meter: "2/4",
       events: /** @type {DemoEvent[]} */ (DEMO_EVENTS),
       marks: /** @type {ScoreMark[]} */ (DEMO_MARKS),
+      tuplets: /** @type {Tuplet[]} */ ([]),
+      scoreParts: /** @type {MeasureRepeat[]} */ ([]),
+      eventTimingByKey: new Map(),
       barlineKinds: {
         "0:0": "repeat-start",
         "0:4": "repeat-end",
@@ -1295,12 +1356,60 @@
       return beat;
     }
 
-    function eventStartBeat(event) {
+    function eventKey(event) {
+      return `${event.m}:${event.p}`;
+    }
+
+    function compareScorePosition(left, right) {
+      return left.m - right.m || left.p - right.p;
+    }
+
+    function nominalEventStartBeat(event) {
       return measureStartBeat(event.m) + event.p / 4;
     }
 
-    function eventDurationBeat(event) {
+    function nominalEventDurationBeat(event) {
       return Math.max(.125, event.d / 4);
+    }
+
+    function eventStartBeat(event) {
+      return state.eventTimingByKey.get(eventKey(event))?.start ?? nominalEventStartBeat(event);
+    }
+
+    function eventDurationBeat(event) {
+      return state.eventTimingByKey.get(eventKey(event))?.duration ?? nominalEventDurationBeat(event);
+    }
+
+    function rebuildEventTimeline() {
+      const timingByKey = new Map();
+      state.events.forEach((event) => {
+        timingByKey.set(eventKey(event), {
+          start: nominalEventStartBeat(event),
+          duration: nominalEventDurationBeat(event)
+        });
+      });
+
+      state.tuplets.forEach((tuplet) => {
+        const selectedEvents = state.events
+          .filter((event) => compareScorePosition(event, tuplet.start) >= 0 && compareScorePosition(event, tuplet.end) <= 0)
+          .sort((left, right) => compareScorePosition(left, right));
+        const writtenTotal = selectedEvents.reduce((total, event) => total + nominalEventDurationBeat(event), 0);
+        if (selectedEvents.length < 2 || writtenTotal <= 0) return;
+
+        const scale = tuplet.targetBeats / writtenTotal;
+        const tupletStart = nominalEventStartBeat(selectedEvents[0]);
+        let elapsedWrittenBeats = 0;
+        selectedEvents.forEach((event) => {
+          const writtenDuration = nominalEventDurationBeat(event);
+          timingByKey.set(eventKey(event), {
+            start: tupletStart + elapsedWrittenBeats * scale,
+            duration: writtenDuration * scale
+          });
+          elapsedWrittenBeats += writtenDuration;
+        });
+      });
+
+      state.eventTimingByKey = timingByKey;
     }
 
     function vocalNoteStartBeat(note) {
@@ -1308,7 +1417,8 @@
     }
 
     function vocalNoteDurationBeat(note) {
-      return Math.max(.125, note.d / 4);
+      const dottedScale = note.kind === "pitch" && note.dotted ? 1.5 : 1;
+      return Math.max(.125, note.d / 4 * dottedScale);
     }
 
     function playbackEndBeat() {
@@ -1333,7 +1443,8 @@
         : 0;
       const indexes = [
         ...state.events.map((event) => event.m),
-        ...state.vocalNotes.map((note) => note.m)
+        ...state.vocalNotes.map((note) => note.m),
+        ...state.scoreParts.map((part) => part.m)
       ].filter((value) => Number.isInteger(value) && value >= 0);
       const contentCount = indexes.length ? Math.max(...indexes) + 1 : 0;
       return Math.max(explicitCount, contentCount);
@@ -1461,6 +1572,7 @@
     function appendVocalNote(measure, note) {
       const item = document.createElement("span");
       item.className = "vocal-note";
+      item.classList.toggle("is-dotted", note.dotted);
       item.dataset.vocalId = note.id;
       item.dataset.duration = String(note.d);
       item.dataset.kind = note.kind;
@@ -1472,6 +1584,13 @@
       const value = document.createElement("span");
       value.className = "vocal-note-value";
       value.textContent = note.v;
+      if (note.dotted) {
+        const dot = document.createElement("span");
+        dot.className = "vocal-dot";
+        dot.setAttribute("aria-hidden", "true");
+        dot.textContent = "・";
+        value.append(dot);
+      }
       const stringMark = document.createElement("span");
       stringMark.className = "vocal-string-mark";
       stringMark.textContent = note.kind === "pitch" ? vocalStringMark(note.s) : "";
@@ -1535,6 +1654,51 @@
       });
     }
 
+    function renderTuplets() {
+      els.scorePaper.querySelectorAll(".tuplet-layer").forEach((element) => element.remove());
+      if (!state.tuplets.length) return;
+
+      state.tuplets.forEach((tuplet) => {
+        const start = els.scorePaper.querySelector(`[data-note-anchor="${tuplet.start.m}:${tuplet.start.s}:${tuplet.start.p}"]`);
+        const end = els.scorePaper.querySelector(`[data-note-anchor="${tuplet.end.m}:${tuplet.end.s}:${tuplet.end.p}"]`);
+        const row = start?.closest(".score-row");
+        if (!(start instanceof HTMLElement) || !(end instanceof HTMLElement) || !(row instanceof HTMLElement) || end.closest(".score-row") !== row) return;
+
+        const rowRect = row.getBoundingClientRect();
+        const startValue = start.querySelector("span:first-child") || start;
+        const endValue = end.querySelector("span:first-child") || end;
+        const startRect = startValue.getBoundingClientRect();
+        const endRect = endValue.getBoundingClientRect();
+        const x1 = startRect.left + startRect.width / 2 - rowRect.left;
+        const x2 = endRect.left + endRect.width / 2 - rowRect.left;
+        if (!rowRect.width || x2 - x1 < 8) return;
+
+        const topOffset = 28;
+        const y1 = Math.max(8, Math.min(rowRect.height + topOffset - 4, startRect.top - rowRect.top + topOffset - 3));
+        const y2 = Math.max(8, Math.min(rowRect.height + topOffset - 4, endRect.top - rowRect.top + topOffset - 3));
+        const controlX = (x1 + x2) / 2;
+        const controlY = Math.max(5, Math.min(y1, y2) - 17);
+        const curveMidY = (y1 + 2 * controlY + y2) / 4;
+        const labelY = Math.max(8, curveMidY - 4);
+        const overlayHeight = Math.ceil(rowRect.height + topOffset);
+        let svg = row.querySelector(".tuplet-layer");
+        if (!(svg instanceof SVGElement)) {
+          svg = svgElement("svg", { class: "tuplet-layer", preserveAspectRatio: "none", "aria-hidden": "true" });
+          row.append(svg);
+        }
+        svg.setAttribute("viewBox", `0 0 ${rowRect.width} ${overlayHeight}`);
+        svg.style.height = `${overlayHeight}px`;
+        const group = svgElement("g", { "data-tuplet-id": tuplet.id });
+        const label = svgElement("text", { x: controlX.toFixed(2), y: labelY.toFixed(2) });
+        label.textContent = "3";
+        group.append(
+          svgElement("path", { d: `M ${x1.toFixed(2)} ${y1.toFixed(2)} Q ${controlX.toFixed(2)} ${controlY.toFixed(2)} ${x2.toFixed(2)} ${y2.toFixed(2)}` }),
+          label
+        );
+        svg.append(group);
+      });
+    }
+
     function marksForEvent(event) {
       const texts = new Set();
       return state.marks.filter((mark) => {
@@ -1568,6 +1732,25 @@
       bar.setAttribute("aria-label", BARLINE_LABELS[kind]);
       measure.classList.add(edge === "row-end" ? "has-right-barline" : "has-left-barline");
       measure.append(bar);
+    }
+
+    function appendMeasureRepeat(measure, part) {
+      const container = document.createElement("span");
+      container.className = "measure-repeat";
+      container.dataset.repeatKind = part.kind;
+      container.setAttribute("role", "img");
+      container.setAttribute("aria-label", part.kind === "same2" ? "同じ2" : "同じ1");
+      const svg = svgElement("svg", { viewBox: "0 0 34 68", "aria-hidden": "true" });
+      svg.append(
+        svgElement("circle", { cx: 5, cy: 18, r: 2.5, fill: "currentColor" }),
+        svgElement("circle", { cx: 29, cy: 50, r: 2.5, fill: "currentColor" }),
+        svgElement("line", { x1: 7, y1: 62, x2: 21, y2: 6, stroke: "currentColor", "stroke-width": 2 })
+      );
+      if (part.kind === "same2") {
+        svg.append(svgElement("line", { x1: 13, y1: 62, x2: 27, y2: 6, stroke: "currentColor", "stroke-width": 2 }));
+      }
+      container.append(svg);
+      measure.append(container);
     }
 
     const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
@@ -2176,6 +2359,7 @@
           measure.dataset.measure = String(measureIndex);
           measure.innerHTML = '<span class="string-line" data-string="3"></span><span class="string-line" data-string="2"></span><span class="string-line" data-string="1"></span>';
           appendBarline(measure, state.barlineKinds?.[`${rowIndex}:${column}`], column === 0 ? "row-start" : "internal");
+          state.scoreParts.filter((part) => part.m === measureIndex).forEach((part) => appendMeasureRepeat(measure, part));
 
           state.events.forEach((event, eventIndex) => {
             if (event.m !== measureIndex) return;
@@ -2192,6 +2376,7 @@
               } else {
                 item.className = "score-symbol note";
                 item.dataset.string = String(stringNumber);
+                item.dataset.noteAnchor = `${event.m}:${stringNumber}:${event.p}`;
                 const valueElement = document.createElement("span");
                 valueElement.textContent = String(value);
                 item.append(valueElement);
@@ -2278,6 +2463,7 @@
       });
 
       alignLyricLines();
+      renderTuplets();
       renderVocalSlurs();
       renderWritingLayers();
       const visibleBeat = state.isPlaying ? currentBeat() : state.pausedBeat;
@@ -2735,6 +2921,7 @@
           v: value || (kind === "rest" ? "・" : ""),
           s: stringNumber,
           d: note.d,
+          dotted: kind === "pitch" && note.dotted === true,
           x: finiteNumber(note.x),
           kind,
           color: kind === "pitch" && typeof note.color === "string" && /^#[0-9a-f]{6}$/i.test(note.color) ? note.color : "#222222",
@@ -2759,6 +2946,85 @@
         if (used.has(key)) return [];
         used.add(key);
         return [{ id: String(slur.id || `vocal-slur-${index + 1}`), startId, endId }];
+      });
+    }
+
+    function scoreTuplets(score) {
+      if (!Array.isArray(score.tuplets)) return [];
+      const noteAnchors = new Set(
+        score.notes
+          .filter((note) => note && note.rest !== true)
+          .map((note) => `${Number(note.m)}:${Number(note.s)}:${Number(note.p)}`)
+      );
+      const columns = Array.from(new Map(
+        score.notes
+          .filter((note) => note && note.rest !== true && Number.isInteger(Number(note.m)) && Number.isFinite(Number(note.p)))
+          .map((note) => [`${Number(note.m)}:${Number(note.p)}`, { m: Number(note.m), p: Number(note.p) }])
+      ).values());
+      const usedIds = new Set();
+      const ranges = [];
+
+      return score.tuplets.map((tuplet, index) => {
+        const start = {
+          m: Number(tuplet?.start?.m),
+          s: Number(tuplet?.start?.s),
+          p: Number(tuplet?.start?.p)
+        };
+        const end = {
+          m: Number(tuplet?.end?.m),
+          s: Number(tuplet?.end?.s),
+          p: Number(tuplet?.end?.p)
+        };
+        const targetBeats = Number(tuplet?.targetBeats);
+        const anchorsAreValid = [start, end].every((anchor) =>
+          Number.isInteger(anchor.m)
+          && anchor.m >= 0
+          && [1, 2, 3].includes(anchor.s)
+          && Number.isInteger(anchor.p)
+          && anchor.p >= 0
+          && noteAnchors.has(`${anchor.m}:${anchor.s}:${anchor.p}`)
+        );
+        const selectedColumns = columns.filter((column) =>
+          compareScorePosition(column, start) >= 0 && compareScorePosition(column, end) <= 0
+        );
+        if (tuplet?.type !== "triplet" || !anchorsAreValid || compareScorePosition(start, end) >= 0
+          || !Number.isFinite(targetBeats) || targetBeats <= 0 || targetBeats > 16 || selectedColumns.length < 2) {
+          throw new Error(`三連符 ${index + 1}件目の範囲または拍数が不正です。`);
+        }
+        if (ranges.some((range) => compareScorePosition(range.end, start) >= 0 && compareScorePosition(range.start, end) <= 0)) {
+          throw new Error(`三連符 ${index + 1}件目が別の三連符と重なっています。`);
+        }
+        ranges.push({ start, end });
+
+        const baseId = typeof tuplet.id === "string" && tuplet.id.trim() ? tuplet.id.trim() : `tuplet-${index + 1}`;
+        let id = baseId;
+        let suffix = 2;
+        while (usedIds.has(id)) {
+          id = `${baseId}-${suffix}`;
+          suffix += 1;
+        }
+        usedIds.add(id);
+        return { id, type: "triplet", start, end, targetBeats };
+      });
+    }
+
+    function scoreMeasureRepeats(score) {
+      if (!Array.isArray(score.scoreParts)) return [];
+      const usedMeasures = new Set();
+      return score.scoreParts.flatMap((part, index) => {
+        const repeatCount = part?.kind === "same2" || Number(part?.repeatCount) === 2 ? 2
+          : part?.kind === "same1" || Number(part?.repeatCount) === 1 ? 1
+            : 0;
+        const measureIndex = Number(part?.m);
+        if (!repeatCount || !Number.isInteger(measureIndex) || measureIndex < 0 || usedMeasures.has(measureIndex)) return [];
+        usedMeasures.add(measureIndex);
+        return [{
+          id: typeof part.id === "string" && part.id.trim() ? part.id.trim() : `measure-repeat-${index + 1}`,
+          type: "measureRepeat",
+          kind: repeatCount === 2 ? "same2" : "same1",
+          m: measureIndex,
+          repeatCount
+        }];
       });
     }
 
@@ -2794,6 +3060,8 @@
       const lyrics = scoreLyrics(score);
       const vocalNotes = scoreVocalNotes(score);
       const vocalSlurs = scoreVocalSlurs(score, vocalNotes);
+      const tuplets = scoreTuplets(score);
+      const scoreParts = scoreMeasureRepeats(score);
       const optionalLayers = scoreOptionalLayers(score);
       const techniques = new Map();
       marks.forEach((mark) => {
@@ -2832,6 +3100,8 @@
         meter: typeof score.meter === "string" ? score.meter : "2/4",
         events,
         marks,
+        tuplets,
+        scoreParts,
         barlineKinds: score.barlineKinds && typeof score.barlineKinds === "object" ? score.barlineKinds : {},
         rows: Number.isInteger(score.rows) ? score.rows : 1,
         measuresPerRow: Number.isInteger(score.measuresPerRow) ? score.measuresPerRow : 6,
@@ -2869,6 +3139,7 @@
       const parsed = parseScoreFile(json);
       stopPlayback(true);
       Object.assign(state, parsed);
+      rebuildEventTimeline();
       updateSummary();
       renderLayerControls();
       renderScore();
@@ -2969,6 +3240,7 @@
         if (!response.ok) return;
         const parsed = parseScoreFile(await response.json());
         Object.assign(state, parsed);
+        rebuildEventTimeline();
         updateSummary();
         renderLayerControls();
         renderScore();
@@ -2977,6 +3249,7 @@
       }
     }
 
+    rebuildEventTimeline();
     updateSummary();
     renderLayerControls();
     renderScore();
