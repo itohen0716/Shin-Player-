@@ -93,7 +93,8 @@
       : availableDuration;
     const sourcePlaybackDuration = Math.min(sourceDuration, outputDuration * rate);
     const startDelay = Math.max(0, Number(options.delay) || 0);
-    const startAt = ctx.currentTime + startDelay;
+    const absoluteWhen = Number(options.when);
+    const startAt = Number.isFinite(absoluteWhen) ? absoluteWhen : ctx.currentTime + startDelay;
     const fade = Math.min(0.018, outputDuration / 5);
     const source = ctx.createBufferSource();
     const gain = ctx.createGain();
