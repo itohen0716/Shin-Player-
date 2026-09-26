@@ -86,7 +86,12 @@
     const offset = Math.max(0, segment.start);
     const sourceDuration = Math.max(0.05, Math.min(segment.end, audioBuffer.duration) - offset);
     const rate = Math.max(0.25, Math.min(4, Number(options.playbackRate) || 1));
-    const outputDuration = sourceDuration / rate;
+    const availableDuration = sourceDuration / rate;
+    const requestedDuration = Number(options.duration);
+    const outputDuration = Number.isFinite(requestedDuration) && requestedDuration > 0
+      ? Math.min(requestedDuration, availableDuration)
+      : availableDuration;
+    const sourcePlaybackDuration = Math.min(sourceDuration, outputDuration * rate);
     const startDelay = Math.max(0, Number(options.delay) || 0);
     const startAt = ctx.currentTime + startDelay;
     const fade = Math.min(0.018, outputDuration / 5);
@@ -109,7 +114,8 @@
       try { source.disconnect(); gain.disconnect(); } catch (_) {}
     }, { once: true });
     active.add(voice);
-    source.start(startAt, offset, sourceDuration);
+    source.start(startAt, offset, sourcePlaybackDuration);
+    source.stop(startAt + outputDuration);
 
     return Object.freeze({
       duration: outputDuration,
