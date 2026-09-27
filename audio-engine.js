@@ -12,9 +12,33 @@
 
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
   const active = new Set();
+  const traceEntries = [];
+  const TRACE_LIMIT = 5000;
+  let nextTraceId = 1;
   let context;
   let teacherBuffer;
   let loadPromise;
+
+  function trace(type, details = {}) {
+    const entry = Object.freeze({
+      type,
+      recordedAtMs: typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now(),
+      contextTime: context?.currentTime ?? null,
+      ...details
+    });
+    traceEntries.push(entry);
+    if (traceEntries.length > TRACE_LIMIT) traceEntries.splice(0, traceEntries.length - TRACE_LIMIT);
+    return entry;
+  }
+
+  function getTrace() {
+    return traceEntries.map((entry) => ({ ...entry }));
+  }
+
+  function clearTrace() {
+    traceEntries.length = 0;
+    nextTraceId = 1;
+  }
 
   function getContext() {
     if (!AudioContextClass) throw new Error("このブラウザーはWeb Audio APIに対応していません。");
@@ -47,6 +71,7 @@
       } catch (_) {
         throw new Error("三味線音源を再生用に変換できませんでした。");
       }
+      trace("buffer-loaded", { bufferDuration: teacherBuffer.duration, sampleRate: teacherBuffer.sampleRate });
       return teacherBuffer;
     })().catch((error) => {
       loadPromise = null;
@@ -60,6 +85,12 @@
     voice.stopped = true;
     active.delete(voice);
     const now = voice.context.currentTime;
+    trace("voice-stop-request", {
+      traceId: voice.traceId ?? null,
+      requestedAt: now,
+      stopAt: now + fadeSeconds,
+      fadeSeconds
+    });
     try {
       voice.gain.gain.cancelScheduledValues(now);
       voice.gain.gain.setTargetAtTime(0.0001, now, Math.max(0.001, fadeSeconds / 3));
@@ -95,10 +126,23 @@
     const startDelay = Math.max(0, Number(options.delay) || 0);
     const absoluteWhen = Number(options.when);
     const startAt = Number.isFinite(absoluteWhen) ? absoluteWhen : ctx.currentTime + startDelay;
-    const fade = Math.min(0.018, outputDuration / 5);
+    const defaultFade = Math.min(0.018, outputDuration / 5);
+    const requestedFadeIn = Number(options.fadeInSeconds);
+    const requestedFadeOut = Number(options.fadeOutSeconds);
+    const fadeIn = Number.isFinite(requestedFadeIn) && requestedFadeIn > 0
+      ? Math.min(requestedFadeIn, outputDuration / 5)
+      : defaultFade;
+    const fadeOut = Number.isFinite(requestedFadeOut) && requestedFadeOut > 0
+      ? Math.min(requestedFadeOut, outputDuration / 5)
+      : defaultFade;
     const source = ctx.createBufferSource();
     const gain = ctx.createGain();
-    const voice = { source, gain, context: ctx, stopped: false };
+    const traceId = nextTraceId;
+    nextTraceId += 1;
+    const traceContext = options.traceContext && typeof options.traceContext === "object"
+      ? { ...options.traceContext }
+      : {};
+    const voice = { source, gain, context: ctx, stopped: false, traceId };
 
     source.buffer = audioBuffer;
     source.playbackRate.value = rate;
@@ -107,19 +151,49 @@
       : ctx.destination;
     source.connect(gain).connect(destination);
     gain.gain.setValueAtTime(0.0001, startAt);
-    gain.gain.linearRampToValueAtTime(Number(options.volume) || 0.9, startAt + fade);
-    gain.gain.setValueAtTime(Number(options.volume) || 0.9, startAt + Math.max(fade, outputDuration - fade));
+    gain.gain.linearRampToValueAtTime(Number(options.volume) || 0.9, startAt + fadeIn);
+    gain.gain.setValueAtTime(Number(options.volume) || 0.9, startAt + Math.max(fadeIn, outputDuration - fadeOut));
     gain.gain.linearRampToValueAtTime(0.0001, startAt + outputDuration);
     source.addEventListener("ended", () => {
       active.delete(voice);
+      trace("source-ended", {
+        traceId,
+        scheduledStart: startAt,
+        scheduledStop: startAt + outputDuration,
+        endedAt: ctx.currentTime,
+        ...traceContext
+      });
       try { source.disconnect(); gain.disconnect(); } catch (_) {}
     }, { once: true });
     active.add(voice);
+    trace("source-scheduled", {
+      traceId,
+      scheduledAt: ctx.currentTime,
+      startAt,
+      stopAt: startAt + outputDuration,
+      offset,
+      segmentStart: segment.start,
+      segmentEnd: segment.end,
+      segmentDuration: sourceDuration,
+      playbackRate: rate,
+      requestedDuration: Number.isFinite(requestedDuration) ? requestedDuration : null,
+      availableDuration,
+      outputDuration,
+      sourcePlaybackDuration,
+      sourceStartCall: [startAt, offset, sourcePlaybackDuration],
+      sourceStopCall: [startAt + outputDuration],
+      fadeInSeconds: fadeIn,
+      fadeOutSeconds: fadeOut,
+      volume: Number(options.volume) || 0.9,
+      schedulingLeadSeconds: startAt - ctx.currentTime,
+      ...traceContext
+    });
     source.start(startAt, offset, sourcePlaybackDuration);
     source.stop(startAt + outputDuration);
 
     return Object.freeze({
       duration: outputDuration,
+      traceId,
       stop: () => stopVoice(voice),
       ended: new Promise((resolve) => source.addEventListener("ended", resolve, { once: true }))
     });
@@ -152,7 +226,18 @@
     });
   }
 
-  const api = Object.freeze({ getContext, resume, load, play, playSegment, playFrequency, stop: stopAll, stopAll });
+  const api = Object.freeze({
+    getContext,
+    resume,
+    load,
+    play,
+    playSegment,
+    playFrequency,
+    stop: stopAll,
+    stopAll,
+    getTrace,
+    clearTrace
+  });
   root.ShianAudioEngine = api;
   window.ShianAudioEngine = api;
 })();
