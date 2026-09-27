@@ -1742,13 +1742,104 @@
       return Math.max(106, positions.size * widthPerPosition);
     }
 
-    function scoreNoteFontSize(measureIndex) {
+    function legacyScoreNoteFontSize(measureIndex) {
       const events = state.events.filter((event) => event.m === measureIndex);
       const maxOnString = Math.max(0, ...[1, 2, 3].map((stringNumber) => events.reduce(
         (count, event) => count + event.n.filter(([candidateString]) => candidateString === stringNumber).length,
         0
       )));
       return maxOnString >= 8 ? 14 : 15;
+    }
+
+    const SCORE_NOTE_DENSITY_LEVELS = Object.freeze([
+      Object.freeze({ key: "low", maximumRatio: .34, fontSize: 18 }),
+      Object.freeze({ key: "standard", maximumRatio: .52, fontSize: 17 }),
+      Object.freeze({ key: "slightly-high", maximumRatio: .70, fontSize: 16 }),
+      Object.freeze({ key: "high", maximumRatio: Number.POSITIVE_INFINITY, fontSize: 15 })
+    ]);
+    const SCORE_NOTE_DENSITY_PREFERRED_GAP = 6;
+    const SCORE_NOTE_COLLISION_GAP = 1.5;
+    const SCORE_NOTE_GROUP_TOLERANCE = .75;
+    const SCORE_NOTE_STROKE_ALLOWANCE = .6;
+    let scoreNoteMeasureContext = null;
+    let scoreFontReady = false;
+
+    function densityLevelForRatio(ratio) {
+      const safeRatio = Number.isFinite(ratio) ? Math.max(0, ratio) : Number.POSITIVE_INFINITY;
+      return SCORE_NOTE_DENSITY_LEVELS.findIndex((level) => safeRatio <= level.maximumRatio);
+    }
+
+    function scoreNoteTextWidth(text, fontSize) {
+      if (!scoreNoteMeasureContext) {
+        scoreNoteMeasureContext = document.createElement("canvas").getContext("2d");
+      }
+      if (!scoreNoteMeasureContext) return String(text).length * fontSize * .72;
+      scoreNoteMeasureContext.font = `400 ${fontSize}px "Shian 851 MkPOP", "Yu Mincho", serif`;
+      return scoreNoteMeasureContext.measureText(String(text)).width + SCORE_NOTE_STROKE_ALLOWANCE;
+    }
+
+    function scoreNoteGroupsFit(groups, fontSize) {
+      for (let index = 1; index < groups.length; index += 1) {
+        const previous = groups[index - 1];
+        const current = groups[index];
+        const previousWidth = Math.max(...previous.values.map((value) => scoreNoteTextWidth(value, fontSize)));
+        const currentWidth = Math.max(...current.values.map((value) => scoreNoteTextWidth(value, fontSize)));
+        const requiredDistance = (previousWidth + currentWidth) / 2 + SCORE_NOTE_COLLISION_GAP;
+        if (current.center - previous.center < requiredDistance) return false;
+      }
+      return true;
+    }
+
+    function selectScoreNoteDensity(measureWidth, groups) {
+      if (!groups.length || !Number.isFinite(measureWidth) || measureWidth <= 0) {
+        return { ...SCORE_NOTE_DENSITY_LEVELS[1], occupiedRatio: 0 };
+      }
+      const largestFontSize = SCORE_NOTE_DENSITY_LEVELS[0].fontSize;
+      const occupiedWidth = groups.reduce((total, group) => total + Math.max(
+        ...group.values.map((value) => scoreNoteTextWidth(value, largestFontSize))
+      ), 0) + Math.max(0, groups.length - 1) * SCORE_NOTE_DENSITY_PREFERRED_GAP;
+      const occupiedRatio = occupiedWidth / measureWidth;
+      const initialLevel = Math.max(0, densityLevelForRatio(occupiedRatio));
+      for (let levelIndex = initialLevel; levelIndex < SCORE_NOTE_DENSITY_LEVELS.length; levelIndex += 1) {
+        const level = SCORE_NOTE_DENSITY_LEVELS[levelIndex];
+        if (scoreNoteGroupsFit(groups, level.fontSize)) return { ...level, occupiedRatio };
+      }
+      return { ...SCORE_NOTE_DENSITY_LEVELS[SCORE_NOTE_DENSITY_LEVELS.length - 1], occupiedRatio };
+    }
+
+    function scoreNoteGroupsForMeasure(measure) {
+      const groups = [];
+      measure.querySelectorAll(":scope > .score-symbol.note").forEach((item) => {
+        const valueElement = item.firstElementChild;
+        if (!(valueElement instanceof HTMLElement)) return;
+        const rect = item.getBoundingClientRect();
+        const center = rect.left + rect.width / 2;
+        const existing = groups.find((group) => Math.abs(group.center - center) <= SCORE_NOTE_GROUP_TOLERANCE);
+        if (existing) {
+          existing.values.push(valueElement.textContent || "");
+          return;
+        }
+        groups.push({ center, values: [valueElement.textContent || ""] });
+      });
+      return groups.sort((left, right) => left.center - right.center);
+    }
+
+    function applyScoreNoteDensitySizes() {
+      if (!scoreFontReady) return;
+      els.scorePaper.querySelectorAll(".measure").forEach((measure) => {
+        if (!(measure instanceof HTMLElement)) return;
+        const measureIndex = Number(measure.dataset.measure);
+        if (window.innerWidth < SCORE_RESPONSIVE_BREAKPOINT) {
+          measure.style.setProperty("--score-note-size", `${legacyScoreNoteFontSize(measureIndex)}px`);
+          measure.dataset.noteDensity = "legacy-mobile";
+          return;
+        }
+        const measureWidth = measure.getBoundingClientRect().width;
+        const result = selectScoreNoteDensity(measureWidth, scoreNoteGroupsForMeasure(measure));
+        measure.style.setProperty("--score-note-size", `${result.fontSize}px`);
+        measure.dataset.noteDensity = result.key;
+        measure.dataset.noteDensityRatio = result.occupiedRatio.toFixed(3);
+      });
     }
 
     function vocalStringMark(stringNumber) {
@@ -2469,6 +2560,7 @@
       try {
         await document.fonts.load('17px "Shian 851 MkPOP"');
         await document.fonts.ready;
+        scoreFontReady = true;
         if (measureCount() > 0) renderScore();
       } catch (error) {
         console.warn("851マカポップを読み込めなかったため、代替フォントで譜面を表示します。", error);
@@ -2584,7 +2676,6 @@
           const measure = document.createElement("div");
           measure.className = "measure";
           measure.dataset.measure = String(measureIndex);
-          measure.style.setProperty("--score-note-size", `${scoreNoteFontSize(measureIndex)}px`);
           measure.innerHTML = '<span class="string-line" data-string="3"></span><span class="string-line" data-string="2"></span><span class="string-line" data-string="1"></span>';
           const measureSpecial = state.measureSpecials?.[String(measureIndex)];
           if (measureSpecial?.type === "hanma" && Number(measureSpecial.lengthRatio) === .5) {
@@ -2699,6 +2790,7 @@
         els.scorePaper.append(system);
       });
 
+      applyScoreNoteDensitySizes();
       alignLyricLines();
       renderTuplets();
       renderVocalSlurs();
