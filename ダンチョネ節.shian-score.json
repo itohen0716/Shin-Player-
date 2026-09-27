@@ -2047,7 +2047,18 @@
       "3:1": "double",
       "3:2": "double"
     },
-    "measureSpecials": {},
+    "measureSpecials": {
+      "1": {
+        "type": "hanma",
+        "lengthRatio": 0.5,
+        "label": "〔半間〕"
+      },
+      "8": {
+        "type": "hanma",
+        "lengthRatio": 0.5,
+        "label": "〔半間〕"
+      }
+    },
     "title": "ダンチョネ節",
     "tuning": "二上り",
     "meter": "2/4",

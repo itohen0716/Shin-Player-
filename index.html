@@ -470,12 +470,14 @@
 
     .tuplet-layer text {
       fill: #222;
-      stroke: #fffdfa;
-      stroke-width: 4px;
-      paint-order: stroke fill;
-      font: 700 13px Arial, sans-serif;
+      stroke: none;
+      font-family: Arial, Roboto, "Noto Sans", sans-serif;
+      font-size: 16px;
+      font-weight: 700;
       text-anchor: middle;
     }
+
+    .tuplet-label-background { fill: #fffdfa; stroke: none; }
 
     .lyrics-label {
       z-index: 2;
@@ -626,6 +628,22 @@
       position: relative;
       height: 105px;
       transition: background .15s ease, box-shadow .15s ease;
+    }
+
+    .hanma-label {
+      position: absolute;
+      z-index: 5;
+      top: 89px;
+      right: 0;
+      left: 0;
+      height: 16px;
+      color: #5c5149;
+      font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+      font-size: 12px;
+      line-height: 16px;
+      text-align: center;
+      white-space: nowrap;
+      pointer-events: none;
     }
 
     .measure::before,
@@ -990,11 +1008,11 @@
     <section class="card score-summary" aria-labelledby="song-title">
       <div class="summary-main">
         <p class="eyebrow">読み込み中の文化譜</p>
-        <h2 class="song-title" id="song-title">よさこい節</h2>
+        <h2 class="song-title" id="song-title">曲未読込</h2>
         <div class="meta-row" aria-label="譜面情報">
-          <span class="chip" id="tuning-chip">二上り</span>
-          <span class="chip" id="meter-chip">四分ノ二拍子</span>
-          <span class="chip" id="measure-chip">27小節</span>
+          <span class="chip" id="tuning-chip">調子未設定</span>
+          <span class="chip" id="meter-chip">拍子未設定</span>
+          <span class="chip" id="measure-chip">0小節</span>
         </div>
       </div>
       <img class="summary-shami" src="assets/shami-playing.png" alt="" aria-hidden="true" width="1254" height="1254">
@@ -1097,7 +1115,7 @@
     /** @typedef {{id:string,type:"triplet",start:{m:number,s:number,p:number},end:{m:number,s:number,p:number},targetBeats:number}} Tuplet */
     /** @typedef {{id:string,type:"measureRepeat",kind:"same1"|"same2",m:number,repeatCount:number}} MeasureRepeat */
     /** @typedef {{id:string,name:string,visible:boolean,items:Array<Record<string,unknown>>}} OptionalLayer */
-    /** @typedef {{format?:string,score:{title?:string,tuning?:string,meter?:string,notes:Array<Record<string,unknown>>,tuplets?:Array<Record<string,unknown>>,vocalNotes?:Array<Record<string,unknown>>,vocalSlurs?:Array<Record<string,unknown>>,vocalVisible?:boolean,scoreParts?:Array<Record<string,unknown>>,layers?:Array<Record<string,unknown>>,lyrics?:string[],rows?:number,measuresPerRow?:number,rowMeasureCounts?:number[],measureOffsets?:number[],annotationCoordVersion?:number}}} ScoreFile */
+    /** @typedef {{format?:string,score:{title?:string,tuning?:string,meter?:string,notes:Array<Record<string,unknown>>,tuplets?:Array<Record<string,unknown>>,measureSpecials?:Record<string,Record<string,unknown>>,vocalNotes?:Array<Record<string,unknown>>,vocalSlurs?:Array<Record<string,unknown>>,vocalVisible?:boolean,scoreParts?:Array<Record<string,unknown>>,layers?:Array<Record<string,unknown>>,lyrics?:string[],rows?:number,measuresPerRow?:number,rowMeasureCounts?:number[],measureOffsets?:number[],annotationCoordVersion?:number}}} ScoreFile */
 
     const TUNING_MODE_ALIASES = Object.freeze({
       "本調子": "hon",
@@ -1171,38 +1189,31 @@
     DEMO_EVENTS.forEach((event) => { event.x = demoEventOffset(event.m, event.p); });
 
     const state = {
-      title: "よさこい節",
-      tuning: "二上り",
-      meter: "2/4",
-      events: /** @type {DemoEvent[]} */ (DEMO_EVENTS),
-      marks: /** @type {ScoreMark[]} */ (DEMO_MARKS),
+      title: "",
+      tuning: "",
+      meter: "",
+      events: /** @type {DemoEvent[]} */ ([]),
+      marks: /** @type {ScoreMark[]} */ ([]),
       tuplets: /** @type {Tuplet[]} */ ([]),
       scoreParts: /** @type {MeasureRepeat[]} */ ([]),
+      measureSpecials: {},
       eventTimingByKey: new Map(),
-      barlineKinds: {
-        "0:0": "repeat-start",
-        "0:4": "repeat-end",
-        "1:7": "double",
-        "2:7": "final",
-        "3:3": "repeat-start",
-        "3:6": "single",
-        "3:7": "repeat-end"
-      },
-      rows: 4,
-      measuresPerRow: 6,
-      rowMeasureCounts: [6, 7, 7, 7],
+      measureRawStartUnits: [],
+      timeMapRanges: [],
+      playbackEndUnit: 0,
+      barlineKinds: {},
+      rows: 0,
+      measuresPerRow: 0,
+      rowMeasureCounts: [],
       measureOffsets: [],
       scoreScaleX: 798 / 948,
-      lyrics: DEMO_LYRICS,
-      lyricsVisible: true,
+      lyrics: [],
+      lyricsVisible: false,
       vocalNotes: /** @type {VocalNote[]} */ ([]),
       vocalSlurs: [],
       vocalVisible: false,
-      optionalLayers: /** @type {OptionalLayer[]} */ (DEMO_OPTIONAL_LAYERS.map((layer) => ({
-        ...layer,
-        items: layer.items.map((item) => ({ ...item }))
-      }))),
-      annotationCoordVersion: 2,
+      optionalLayers: /** @type {OptionalLayer[]} */ ([]),
+      annotationCoordVersion: 1,
       number: 6,
       bpm: 80,
       isPlaying: false,
@@ -1228,6 +1239,37 @@
       lastFollowedRow: -1,
       wakeLock: null
     };
+
+    const runtimeDiagnostics = {
+      version: 1,
+      session: 0,
+      timeline: [],
+      measures: [],
+      schedule: []
+    };
+    const DIAGNOSTIC_TRACE_LIMIT = 5000;
+
+    function diagnosticCopy(value) {
+      return JSON.parse(JSON.stringify(value));
+    }
+
+    function recordScheduleTrace(type, details = {}) {
+      runtimeDiagnostics.schedule.push({
+        type,
+        recordedAtMs: performance.now(),
+        audioContextTime: state.audioContext?.currentTime ?? null,
+        ...details
+      });
+      if (runtimeDiagnostics.schedule.length > DIAGNOSTIC_TRACE_LIMIT) {
+        runtimeDiagnostics.schedule.splice(0, runtimeDiagnostics.schedule.length - DIAGNOSTIC_TRACE_LIMIT);
+      }
+    }
+
+    function clearRuntimeTrace() {
+      runtimeDiagnostics.session += 1;
+      runtimeDiagnostics.schedule.length = 0;
+      window.ShianAudioEngine?.clearTrace?.();
+    }
 
     const els = {
       songTitle: document.querySelector("#song-title"),
@@ -1337,6 +1379,11 @@
       return beatsPerMeasure(state.meter) * 4;
     }
 
+    function playbackUnitsForMeasure(measureIndex) {
+      const special = state.measureSpecials?.[String(measureIndex)];
+      return baseUnitsPerMeasure() * (special?.type === "hanma" && Number(special.lengthRatio) === .5 ? .5 : 1);
+    }
+
     function displayUnitsForMeasure(measureIndex) {
       const shamisenEnd = state.events
         .filter((event) => event.m === measureIndex)
@@ -1348,12 +1395,45 @@
       return Math.max(baseUnitsPerMeasure(), notatedEnd, 1);
     }
 
-    function measureStartBeat(measureIndex) {
-      let beat = 0;
-      for (let index = 0; index < measureIndex; index += 1) {
-        beat += displayUnitsForMeasure(index) / 4;
+    function rawMeasureStartUnit(measureIndex) {
+      if (Number.isFinite(state.measureRawStartUnits[measureIndex])) return state.measureRawStartUnits[measureIndex];
+      let unit = 0;
+      for (let index = 0; index < measureIndex; index += 1) unit += playbackUnitsForMeasure(index);
+      return unit;
+    }
+
+    function rawPositionUnit(position) {
+      return rawMeasureStartUnit(position.m) + position.p;
+    }
+
+    function timeMap(unit) {
+      let shift = 0;
+      for (const range of state.timeMapRanges) {
+        if (unit < range.start) return unit + shift;
+        if (unit <= range.end) return range.start + shift + (unit - range.start) * range.scale;
+        shift += range.targetUnits - range.writtenUnits;
       }
-      return beat;
+      return unit + shift;
+    }
+
+    function completedTupletShiftBeforeMeasure(measureIndex) {
+      return state.timeMapRanges.reduce((shift, range) =>
+        range.endMeasure < measureIndex ? shift + range.targetUnits - range.writtenUnits : shift
+      , 0);
+    }
+
+    function timelineUnit(measureIndex, rawUnit) {
+      return timeMap(rawUnit) - completedTupletShiftBeforeMeasure(measureIndex);
+    }
+
+    function measureStartBeat(measureIndex) {
+      return timelineUnit(measureIndex, rawMeasureStartUnit(measureIndex)) / 4;
+    }
+
+    function measureEndBeat(measureIndex) {
+      return measureIndex + 1 < measureCount()
+        ? measureStartBeat(measureIndex + 1)
+        : timelineUnit(measureIndex + 1, state.playbackEndUnit) / 4;
     }
 
     function eventKey(event) {
@@ -1365,11 +1445,26 @@
     }
 
     function nominalEventStartBeat(event) {
-      return measureStartBeat(event.m) + event.p / 4;
+      return timelineUnit(event.m, rawPositionUnit(event)) / 4;
+    }
+
+    function timelineDurationBeat(measureIndex, rawStart, rawDuration) {
+      const startUnit = timelineUnit(measureIndex, rawStart);
+      const requestedEndUnit = timelineUnit(measureIndex, rawStart + rawDuration);
+      const isHalfMeasure = playbackUnitsForMeasure(measureIndex) < baseUnitsPerMeasure();
+      const resetsTupletShiftAtBoundary = state.timeMapRanges.some((range) =>
+        range.endMeasure === measureIndex && Math.abs(range.targetUnits - range.writtenUnits) > 1e-9
+      );
+      const rawMeasureEnd = rawMeasureStartUnit(measureIndex) + playbackUnitsForMeasure(measureIndex);
+      const writtenDurationEndsInsideMeasure = rawStart + rawDuration <= rawMeasureEnd + 1e-9;
+      const effectiveEndUnit = isHalfMeasure || (resetsTupletShiftAtBoundary && writtenDurationEndsInsideMeasure)
+        ? Math.min(requestedEndUnit, measureEndBeat(measureIndex) * 4)
+        : requestedEndUnit;
+      return Math.max(0, effectiveEndUnit - startUnit) / 4;
     }
 
     function nominalEventDurationBeat(event) {
-      return Math.max(.125, event.d / 4);
+      return timelineDurationBeat(event.m, rawPositionUnit(event), event.d);
     }
 
     function eventStartBeat(event) {
@@ -1380,45 +1475,121 @@
       return state.eventTimingByKey.get(eventKey(event))?.duration ?? nominalEventDurationBeat(event);
     }
 
+    function refreshTimelineDiagnostics() {
+      const secondsPerBeat = 60 / state.bpm;
+      runtimeDiagnostics.measures = Array.from({ length: measureCount() }, (_, measureIndex) => {
+        const rawStartUnit = rawMeasureStartUnit(measureIndex);
+        const rawEndUnit = rawStartUnit + playbackUnitsForMeasure(measureIndex);
+        const startBeat = measureStartBeat(measureIndex);
+        const endBeat = measureEndBeat(measureIndex);
+        const special = state.measureSpecials?.[String(measureIndex)] ?? null;
+        return {
+          measureIndex,
+          special: special ? { ...special } : null,
+          rawStartUnit,
+          rawEndUnit,
+          playbackUnits: playbackUnitsForMeasure(measureIndex),
+          timelineStartUnit: startBeat * 4,
+          timelineEndUnit: endBeat * 4,
+          startBeat,
+          endBeat,
+          startSeconds: startBeat * secondsPerBeat,
+          endSeconds: endBeat * secondsPerBeat
+        };
+      });
+      runtimeDiagnostics.timeline = state.events.map((event, eventIndex) => {
+        const rawUnit = rawPositionUnit(event);
+        const mappedUnitBeforeReset = timeMap(rawUnit);
+        const mappedUnit = timelineUnit(event.m, rawUnit);
+        const startBeat = eventStartBeat(event);
+        const durationBeat = eventDurationBeat(event);
+        const matchingTuplets = state.timeMapRanges.filter((range) =>
+          rawUnit >= range.start - 1e-9 && rawUnit < range.end - 1e-9
+        );
+        return {
+          eventIndex,
+          m: event.m,
+          p: event.p,
+          d: event.d,
+          sourceNotes: Array.isArray(event.sourceNotes) ? event.sourceNotes.map((note) => ({ ...note })) : [],
+          notes: event.n.map(([s, v]) => ({ s, v })),
+          rawUnit,
+          mappedUnitBeforeReset,
+          completedShiftReset: completedTupletShiftBeforeMeasure(event.m),
+          mappedUnit,
+          startBeat,
+          durationBeat,
+          startSeconds: startBeat * secondsPerBeat,
+          requestedDurationSeconds: durationBeat * secondsPerBeat,
+          tupletIds: matchingTuplets.map((range) => range.id),
+          tuplets: matchingTuplets.map((range) => ({
+            id: range.id,
+            start: range.start,
+            end: range.end,
+            writtenUnits: range.writtenUnits,
+            targetUnits: range.targetUnits,
+            scale: range.scale,
+            shift: range.targetUnits - range.writtenUnits
+          }))
+        };
+      });
+    }
+
     function rebuildEventTimeline() {
+      const measureStarts = [];
+      let playbackEndUnit = 0;
+      for (let measureIndex = 0; measureIndex < measureCount(); measureIndex += 1) {
+        measureStarts.push(playbackEndUnit);
+        playbackEndUnit += playbackUnitsForMeasure(measureIndex);
+      }
+      state.measureRawStartUnits = measureStarts;
+      state.playbackEndUnit = playbackEndUnit;
+
+      const ranges = state.tuplets.map((tuplet) => {
+        const start = rawPositionUnit(tuplet.start);
+        const endDuration = state.events
+          .filter((event) => event.m === tuplet.end.m && event.p === tuplet.end.p)
+          .reduce((maximum, event) => Math.max(maximum, event.d), 0);
+        const end = rawPositionUnit(tuplet.end) + endDuration;
+        const writtenUnits = end - start;
+        const targetUnits = tuplet.targetBeats * 4;
+        if (!(writtenUnits > 0) || !(targetUnits > 0)) return null;
+        return {
+          id: tuplet.id,
+          startAnchor: { ...tuplet.start },
+          endAnchor: { ...tuplet.end },
+          start,
+          end,
+          startMeasure: tuplet.start.m,
+          endMeasure: tuplet.end.m,
+          writtenUnits,
+          targetUnits,
+          scale: targetUnits / writtenUnits
+        };
+      }).filter(Boolean).sort((left, right) => left.start - right.start);
+      state.timeMapRanges = ranges;
+
       const timingByKey = new Map();
       state.events.forEach((event) => {
+        const rawStart = rawPositionUnit(event);
         timingByKey.set(eventKey(event), {
-          start: nominalEventStartBeat(event),
-          duration: nominalEventDurationBeat(event)
-        });
-      });
-
-      state.tuplets.forEach((tuplet) => {
-        const selectedEvents = state.events
-          .filter((event) => compareScorePosition(event, tuplet.start) >= 0 && compareScorePosition(event, tuplet.end) <= 0)
-          .sort((left, right) => compareScorePosition(left, right));
-        const writtenTotal = selectedEvents.reduce((total, event) => total + nominalEventDurationBeat(event), 0);
-        if (selectedEvents.length < 2 || writtenTotal <= 0) return;
-
-        const scale = tuplet.targetBeats / writtenTotal;
-        const tupletStart = nominalEventStartBeat(selectedEvents[0]);
-        let elapsedWrittenBeats = 0;
-        selectedEvents.forEach((event) => {
-          const writtenDuration = nominalEventDurationBeat(event);
-          timingByKey.set(eventKey(event), {
-            start: tupletStart + elapsedWrittenBeats * scale,
-            duration: writtenDuration * scale
-          });
-          elapsedWrittenBeats += writtenDuration;
+          start: timelineUnit(event.m, rawStart) / 4,
+          duration: timelineDurationBeat(event.m, rawStart, event.d)
         });
       });
 
       state.eventTimingByKey = timingByKey;
+      refreshTimelineDiagnostics();
     }
 
     function vocalNoteStartBeat(note) {
-      return measureStartBeat(note.m) + note.p / 4;
+      return timelineUnit(note.m, rawPositionUnit(note)) / 4;
     }
 
     function vocalNoteDurationBeat(note) {
       const dottedScale = note.kind === "pitch" && note.dotted ? 1.5 : 1;
-      return Math.max(.125, note.d / 4 * dottedScale);
+      const rawStart = rawPositionUnit(note);
+      return timelineDurationBeat(note.m, rawStart, note.d * dottedScale);
     }
 
     function playbackEndBeat() {
@@ -1430,7 +1601,8 @@
         (maximum, note) => Math.max(maximum, vocalNoteStartBeat(note) + vocalNoteDurationBeat(note)),
         0
       );
-      return Math.max(shamisenEnd, vocalEnd);
+      const scoreEnd = timelineUnit(measureCount(), state.playbackEndUnit) / 4;
+      return Math.max(shamisenEnd, vocalEnd, scoreEnd);
     }
 
     function noteCount() {
@@ -1444,7 +1616,8 @@
       const indexes = [
         ...state.events.map((event) => event.m),
         ...state.vocalNotes.map((note) => note.m),
-        ...state.scoreParts.map((part) => part.m)
+        ...state.scoreParts.map((part) => part.m),
+        ...Object.keys(state.measureSpecials || {}).map(Number)
       ].filter((value) => Number.isInteger(value) && value >= 0);
       const contentCount = indexes.length ? Math.max(...indexes) + 1 : 0;
       return Math.max(explicitCount, contentCount);
@@ -1455,9 +1628,10 @@
     }
 
     function updateSummary() {
-      els.songTitle.textContent = state.title || "名称未設定";
+      const hasLoadedScore = measureCount() > 0;
+      els.songTitle.textContent = hasLoadedScore ? (state.title || "名称未設定") : "曲未読込";
       els.tuningChip.textContent = state.tuning || "調子未設定";
-      els.meterChip.textContent = meterLabel(state.meter || "2/4");
+      els.meterChip.textContent = hasLoadedScore ? meterLabel(state.meter || "2/4") : "拍子未設定";
       els.measureChip.textContent = `${measureCount()}小節`;
       els.techniqueCounts.innerHTML = `通常音 ${Math.max(0, noteCount() - techniqueCount("ス") - techniqueCount("ハ"))}<br>ス ${techniqueCount("ス")}・ハ ${techniqueCount("ハ")}`;
       els.mixControl.classList.toggle("hidden", !hasVocalNotes());
@@ -1693,6 +1867,14 @@
         label.textContent = "3";
         group.append(
           svgElement("path", { d: `M ${x1.toFixed(2)} ${y1.toFixed(2)} Q ${controlX.toFixed(2)} ${controlY.toFixed(2)} ${x2.toFixed(2)} ${y2.toFixed(2)}` }),
+          svgElement("rect", {
+            class: "tuplet-label-background",
+            x: (controlX - 7).toFixed(2),
+            y: (labelY - 14).toFixed(2),
+            width: "14",
+            height: "18",
+            rx: "3"
+          }),
           label
         );
         svg.append(group);
@@ -2283,6 +2465,13 @@
       els.scorePaper.replaceChildren();
       els.scorePaper.style.minHeight = "";
       const totalMeasures = measureCount();
+      if (totalMeasures === 0) {
+        els.scorePaper.style.width = `${SCORE_PAPER_BASE_WIDTH}px`;
+        els.scorePaper.style.minWidth = `${SCORE_PAPER_BASE_WIDTH}px`;
+        state.scoreScaleX = Math.max(.1, (SCORE_PAPER_BASE_WIDTH - SCORE_FIXED_HORIZONTAL_WIDTH) / SCORE_SOURCE_WIDTH);
+        lastScoreFrameWidth = els.scoreFrame.clientWidth;
+        return;
+      }
       const rowCounts = [];
       const sourceCounts = state.rowMeasureCounts?.filter((count) => Number.isInteger(count) && count > 0) || [];
       if (sourceCounts.length) {
@@ -2358,6 +2547,15 @@
           measure.className = "measure";
           measure.dataset.measure = String(measureIndex);
           measure.innerHTML = '<span class="string-line" data-string="3"></span><span class="string-line" data-string="2"></span><span class="string-line" data-string="1"></span>';
+          const measureSpecial = state.measureSpecials?.[String(measureIndex)];
+          if (measureSpecial?.type === "hanma" && Number(measureSpecial.lengthRatio) === .5) {
+            measure.classList.add("has-hanma");
+            const hanmaLabel = document.createElement("span");
+            hanmaLabel.className = "hanma-label";
+            hanmaLabel.textContent = "〔半間〕";
+            hanmaLabel.setAttribute("aria-label", "半間");
+            measure.append(hanmaLabel);
+          }
           appendBarline(measure, state.barlineKinds?.[`${rowIndex}:${column}`], column === 0 ? "row-start" : "internal");
           state.scoreParts.filter((part) => part.m === measureIndex).forEach((part) => appendMeasureRepeat(measure, part));
 
@@ -2472,11 +2670,9 @@
 
     function measureIndexForBeat(beat) {
       const total = measureCount();
-      let start = 0;
       for (let index = 0; index < total; index += 1) {
-        const end = start + displayUnitsForMeasure(index) / 4;
+        const end = measureEndBeat(index);
         if (beat < end - .001 || index === total - 1) return index;
-        start = end;
       }
       return 0;
     }
@@ -2673,22 +2869,146 @@
       trackVocalNode(gain);
     }
 
+    function eventContainsPitch(event, stringNumber, value) {
+      return Boolean(event?.n.some(([candidateString, candidateValue]) =>
+        candidateString === stringNumber && String(candidateValue) === String(value)
+      ));
+    }
+
+    function needsShortRetriggerFade(leftEvent, leftIndex, rightEvent, rightIndex, stringNumber, value) {
+      if (!leftEvent || !rightEvent || !eventContainsPitch(leftEvent, stringNumber, value)
+        || !eventContainsPitch(rightEvent, stringNumber, value)) return false;
+      const leftEndBeat = eventStartBeat(leftEvent) + eventDurationBeat(leftEvent);
+      if (Math.abs(leftEndBeat - eventStartBeat(rightEvent)) > 1e-6) return false;
+      const leftTuplets = runtimeDiagnostics.timeline[leftIndex]?.tupletIds ?? [];
+      const rightTuplets = runtimeDiagnostics.timeline[rightIndex]?.tupletIds ?? [];
+      const leftPlayableCount = leftEvent.n.filter(([candidateString]) => [1, 2, 3].includes(candidateString)).length;
+      const rightPlayableCount = rightEvent.n.filter(([candidateString]) => [1, 2, 3].includes(candidateString)).length;
+      const sharesMonophonicTuplet = leftPlayableCount === 1 && rightPlayableCount === 1
+        && leftTuplets.some((id) => rightTuplets.includes(id));
+      const special = state.measureSpecials?.[String(leftEvent.m)];
+      const crossesHalfBoundary = rightEvent.m === leftEvent.m + 1
+        && special?.type === "hanma" && Number(special.lengthRatio) === .5;
+      return sharesMonophonicTuplet || crossesHalfBoundary;
+    }
+
     function schedulePlaybackAudio(fromBeat, leadSeconds = .08) {
       if (!state.soundEnabled || !state.audioContext || !state.shamisenGain) return;
+      if (fromBeat <= .001) clearRuntimeTrace();
       const secondsPerBeat = 60 / state.bpm;
       state.audioStartTime = state.audioContext.currentTime + leadSeconds - fromBeat * secondsPerBeat;
-      state.events.filter((event) => eventStartBeat(event) >= fromBeat - .001).forEach((event) => {
+      const sessionId = runtimeDiagnostics.session;
+      recordScheduleTrace("schedule-batch", {
+        sessionId,
+        title: state.title,
+        bpm: state.bpm,
+        fromBeat,
+        leadSeconds,
+        secondsPerBeat,
+        secondsPerUnit: secondsPerBeat / 4,
+        audioStartTime: state.audioStartTime
+      });
+      state.events.forEach((event, eventIndex) => {
+        if (eventStartBeat(event) < fromBeat - .001) return;
         const notes = event.n.filter(([stringNumber]) => [1, 2, 3].includes(stringNumber));
-        const when = state.audioStartTime + eventStartBeat(event) * secondsPerBeat;
-        const delay = Math.max(0, when - state.audioContext.currentTime);
+        const startBeat = eventStartBeat(event);
+        const durationBeat = eventDurationBeat(event);
+        const when = state.audioStartTime + startBeat * secondsPerBeat;
+        const duration = durationBeat * secondsPerBeat;
+        const nextEvent = state.events[eventIndex + 1] ?? null;
+        const nextEventStartBeat = nextEvent ? eventStartBeat(nextEvent) : playbackEndBeat();
+        const nextEventStartTime = state.audioStartTime + nextEventStartBeat * secondsPerBeat;
+        const timelineTrace = runtimeDiagnostics.timeline[eventIndex] ?? null;
         const volume = notes.length > 1 ? .62 : .88;
+        recordScheduleTrace("event-scheduled", {
+          sessionId,
+          eventIndex,
+          m: event.m,
+          p: event.p,
+          d: event.d,
+          sourceNotes: Array.isArray(event.sourceNotes) ? event.sourceNotes.map((note) => ({ ...note })) : [],
+          rawUnit: timelineTrace?.rawUnit ?? rawPositionUnit(event),
+          mappedUnit: timelineTrace?.mappedUnit ?? startBeat * 4,
+          completedShiftReset: timelineTrace?.completedShiftReset ?? completedTupletShiftBeforeMeasure(event.m),
+          tuplets: timelineTrace?.tuplets ?? [],
+          startBeat,
+          durationBeat,
+          when,
+          requestedDuration: duration,
+          nextEventStartBeat,
+          nextEventStartTime,
+          scheduledGapSeconds: nextEventStartTime - (when + duration),
+          notes: notes.map(([s, v]) => ({ s, v }))
+        });
         notes.forEach(([stringNumber, value]) => {
+          const previousEvent = state.events[eventIndex - 1] ?? null;
+          const nextEventForFade = state.events[eventIndex + 1] ?? null;
+          const shortFadeIn = needsShortRetriggerFade(
+            previousEvent,
+            eventIndex - 1,
+            event,
+            eventIndex,
+            stringNumber,
+            value
+          );
+          const shortFadeOut = needsShortRetriggerFade(
+            event,
+            eventIndex,
+            nextEventForFade,
+            eventIndex + 1,
+            stringNumber,
+            value
+          );
           window.ShianAudioEngine.playFrequency(frequencyForNote(stringNumber, value), {
             exclusive: false,
-            delay,
+            when,
+            duration,
             volume,
-            destination: state.shamisenGain
-          }).catch((error) => console.error(error));
+            fadeInSeconds: shortFadeIn ? .004 : undefined,
+            fadeOutSeconds: shortFadeOut ? .004 : undefined,
+            destination: state.shamisenGain,
+            traceContext: {
+              sessionId,
+              eventIndex,
+              m: event.m,
+              s: stringNumber,
+              p: event.p,
+              d: event.d,
+              v: value,
+              tupletIds: timelineTrace?.tupletIds ?? [],
+              rawUnit: timelineTrace?.rawUnit ?? rawPositionUnit(event),
+              mappedUnit: timelineTrace?.mappedUnit ?? startBeat * 4,
+              eventStartBeat: startBeat,
+              eventDurationBeat: durationBeat,
+              nextEventStartTime,
+              shortRetriggerFadeIn: shortFadeIn,
+              shortRetriggerFadeOut: shortFadeOut
+            }
+          }).then((voice) => {
+            recordScheduleTrace("voice-scheduled", {
+              sessionId,
+              eventIndex,
+              m: event.m,
+              s: stringNumber,
+              p: event.p,
+              d: event.d,
+              v: value,
+              traceId: voice?.traceId ?? null,
+              outputDuration: voice?.duration ?? null
+            });
+          }).catch((error) => {
+            recordScheduleTrace("voice-error", {
+              sessionId,
+              eventIndex,
+              m: event.m,
+              s: stringNumber,
+              p: event.p,
+              d: event.d,
+              v: value,
+              message: error instanceof Error ? error.message : String(error)
+            });
+            console.error(error);
+          });
         });
       });
       const vocalPlan = buildVocalPlan();
@@ -2847,6 +3167,7 @@
       state.pausedBeat = beat;
       els.tempoSlider.value = String(newBpm);
       els.tempoValue.textContent = `♩＝${newBpm}`;
+      refreshTimelineDiagnostics();
       if (wasPlaying) {
         cancelAnimationFrame(state.animationId);
         stopScheduledAudio();
@@ -3028,6 +3349,16 @@
       });
     }
 
+    function scoreMeasureSpecials(score) {
+      if (!score.measureSpecials || typeof score.measureSpecials !== "object") return {};
+      return Object.fromEntries(Object.entries(score.measureSpecials).flatMap(([key, special]) => {
+        const measureIndex = Number(key);
+        if (!Number.isInteger(measureIndex) || measureIndex < 0 || !special || typeof special !== "object") return [];
+        if (special.type !== "hanma" || Number(special.lengthRatio) !== .5) return [];
+        return [[String(measureIndex), { ...special, type: "hanma", lengthRatio: .5, label: "〔半間〕" }]];
+      }));
+    }
+
     function scoreOptionalLayers(score) {
       if (!Array.isArray(score.layers)) return [];
       const usedIds = new Set();
@@ -3062,6 +3393,7 @@
       const vocalSlurs = scoreVocalSlurs(score, vocalNotes);
       const tuplets = scoreTuplets(score);
       const scoreParts = scoreMeasureRepeats(score);
+      const measureSpecials = scoreMeasureSpecials(score);
       const optionalLayers = scoreOptionalLayers(score);
       const techniques = new Map();
       marks.forEach((mark) => {
@@ -3073,8 +3405,16 @@
           throw new Error(`${index + 1}件目の音符データが不正です。`);
         }
         const key = `${note.m}:${note.p}`;
-        const group = groups.get(key) || { m: note.m, p: note.p, d: note.d, n: [] };
-        group.d = Math.min(group.d, note.d);
+        const group = groups.get(key) || { m: note.m, p: note.p, d: note.d, n: [], sourceNotes: [] };
+        group.d = Math.max(group.d, note.d);
+        group.sourceNotes.push({
+          m: note.m,
+          s: Number(note.s),
+          p: Number(note.p),
+          d: Number(note.d),
+          v: note.rest === true ? null : String(note.v),
+          rest: note.rest === true
+        });
         if (Number.isFinite(note.x) && note.x !== 0 && !Number.isFinite(group.x)) group.x = note.x;
         if (note.rest === true) group.n.push([0, "休"]);
         else if ([1, 2, 3].includes(note.s) && (typeof note.v === "string" || typeof note.v === "number")) {
@@ -3102,6 +3442,7 @@
         marks,
         tuplets,
         scoreParts,
+        measureSpecials,
         barlineKinds: score.barlineKinds && typeof score.barlineKinds === "object" ? score.barlineKinds : {},
         rows: Number.isInteger(score.rows) ? score.rows : 1,
         measuresPerRow: Number.isInteger(score.measuresPerRow) ? score.measuresPerRow : 6,
@@ -3145,6 +3486,34 @@
       renderScore();
       showToast(`「${state.title}」を読み込みました。`);
     }
+
+    function getRuntimeTrace() {
+      refreshTimelineDiagnostics();
+      return diagnosticCopy({
+        version: runtimeDiagnostics.version,
+        session: runtimeDiagnostics.session,
+        score: {
+          title: state.title,
+          tuning: state.tuning,
+          meter: state.meter,
+          bpm: state.bpm,
+          measureCount: measureCount(),
+          eventCount: state.events.length,
+          tupletCount: state.tuplets.length,
+          playbackEndBeat: playbackEndBeat()
+        },
+        timeMapRanges: state.timeMapRanges,
+        measures: runtimeDiagnostics.measures,
+        timeline: runtimeDiagnostics.timeline,
+        schedule: runtimeDiagnostics.schedule,
+        audio: window.ShianAudioEngine?.getTrace?.() ?? []
+      });
+    }
+
+    window.ShianPlayerDiagnostics = Object.freeze({
+      getTrace: getRuntimeTrace,
+      clearTrace: clearRuntimeTrace
+    });
 
     els.fileButton.addEventListener("click", () => els.fileInput.click());
     els.fileInput.addEventListener("change", async () => {
@@ -3234,26 +3603,10 @@
       void releaseWakeLock();
     });
 
-    async function loadBundledScore() {
-      try {
-        const response = await fetch("./よさこい節.shian-score.json", { cache: "no-store" });
-        if (!response.ok) return;
-        const parsed = parseScoreFile(await response.json());
-        Object.assign(state, parsed);
-        rebuildEventTimeline();
-        updateSummary();
-        renderLayerControls();
-        renderScore();
-      } catch (error) {
-        console.warn("同梱譜面は読み込めませんでした。", error);
-      }
-    }
-
     rebuildEventTimeline();
     updateSummary();
     renderLayerControls();
     renderScore();
-    void loadBundledScore();
   </script>
 </body>
 </html>
