@@ -5,7 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f4ead9">
   <title>絲庵譜プレーヤー｜絲庵</title>
+  <link rel="preload" href="./fonts/851MkPOP_101.ttf" as="font" type="font/ttf" crossorigin>
   <style>
+    @font-face {
+      font-family: "Shian 851 MkPOP";
+      src: url("./fonts/851MkPOP_101.ttf") format("truetype");
+      font-weight: 400;
+      font-style: normal;
+      font-display: block;
+    }
+
     :root {
       color-scheme: light;
       --paper: #fbf5e9;
@@ -502,8 +511,8 @@
       padding: 2px 0 0 8px;
       border-bottom: 1px solid #d7c3ad;
       color: #5c4639;
-      font-family: "Yu Gothic", "Noto Sans JP", sans-serif;
-      font-size: 18px;
+      font-family: "Shian 851 MkPOP", "Yu Gothic", "Noto Sans JP", sans-serif;
+      font-size: 17px;
       font-weight: 500;
       letter-spacing: -2px;
       line-height: 25px;
@@ -713,6 +722,14 @@
     .score-symbol > span:first-child {
       -webkit-text-stroke: .3px #fffdfa;
       paint-order: stroke fill;
+    }
+
+    .score-symbol.note > span:first-child {
+      font-family: "Shian 851 MkPOP", "Yu Mincho", "Hiragino Mincho ProN", serif;
+      font-size: var(--score-note-size, 15px);
+      font-weight: 400;
+      font-synthesis: none;
+      line-height: 1;
     }
 
     .score-symbol.is-playing > span:first-child {
@@ -1725,6 +1742,15 @@
       return Math.max(106, positions.size * widthPerPosition);
     }
 
+    function scoreNoteFontSize(measureIndex) {
+      const events = state.events.filter((event) => event.m === measureIndex);
+      const maxOnString = Math.max(0, ...[1, 2, 3].map((stringNumber) => events.reduce(
+        (count, event) => count + event.n.filter(([candidateString]) => candidateString === stringNumber).length,
+        0
+      )));
+      return maxOnString >= 8 ? 14 : 15;
+    }
+
     function vocalStringMark(stringNumber) {
       if (stringNumber === 1) return "•";
       if (stringNumber === 2) return "••";
@@ -1942,7 +1968,8 @@
     const ANNOTATION_SOURCE_FIRST_STRING_Y = 111;
     const ANNOTATION_SOURCE_ROW_PITCH = 124;
     const ANNOTATION_SOURCE_STRING_SPAN = 36;
-    const LYRIC_SOURCE_FONT_SIZE = 19;
+    const LYRIC_SOURCE_FONT_SIZE = 17;
+    const LYRIC_MIN_FONT_SIZE = 17;
     const COMMENT_MIN_FONT_SIZE = 20;
     const SCORE_PAPER_BASE_WIDTH = 864;
     const SCORE_SOURCE_WIDTH = ANNOTATION_SOURCE_RIGHT - ANNOTATION_SOURCE_LEFT;
@@ -2319,8 +2346,8 @@
           y: point.y,
           fill: color,
           stroke: "none",
-          "font-size": fontSize,
-          "font-family": '"Yu Gothic", "Noto Sans JP", sans-serif',
+          "font-size": fontSize + 1,
+          "font-family": '"Shian 851 MkPOP", "Yu Gothic", "Noto Sans JP", sans-serif',
           "font-weight": 600,
           "dominant-baseline": "alphabetic"
         });
@@ -2422,7 +2449,7 @@
         const row = line.parentElement?.querySelector(".score-row");
         const rowWidth = row instanceof HTMLElement ? row.getBoundingClientRect().width : 0;
         const scaleX = rowWidth > 0 ? rowWidth / SCORE_SOURCE_WIDTH : 1;
-        const fontSize = Math.max(18, LYRIC_SOURCE_FONT_SIZE * scaleX);
+        const fontSize = Math.max(LYRIC_MIN_FONT_SIZE, LYRIC_SOURCE_FONT_SIZE * scaleX);
         line.style.fontSize = `${fontSize.toFixed(2)}px`;
         line.style.letterSpacing = `${Math.min(0, 16 * scaleX - fontSize).toFixed(2)}px`;
         line.style.paddingLeft = `${(8 * scaleX).toFixed(2)}px`;
@@ -2435,6 +2462,17 @@
           line.style.letterSpacing = `${fittedSpacing.toFixed(2)}px`;
         }
       });
+    }
+
+    async function rerenderAfterScoreFontLoad() {
+      if (!document.fonts) return;
+      try {
+        await document.fonts.load('17px "Shian 851 MkPOP"');
+        await document.fonts.ready;
+        if (measureCount() > 0) renderScore();
+      } catch (error) {
+        console.warn("851マカポップを読み込めなかったため、代替フォントで譜面を表示します。", error);
+      }
     }
 
     function measureWeight(measureIndex) {
@@ -2546,6 +2584,7 @@
           const measure = document.createElement("div");
           measure.className = "measure";
           measure.dataset.measure = String(measureIndex);
+          measure.style.setProperty("--score-note-size", `${scoreNoteFontSize(measureIndex)}px`);
           measure.innerHTML = '<span class="string-line" data-string="3"></span><span class="string-line" data-string="2"></span><span class="string-line" data-string="1"></span>';
           const measureSpecial = state.measureSpecials?.[String(measureIndex)];
           if (measureSpecial?.type === "hanma" && Number(measureSpecial.lengthRatio) === .5) {
@@ -3607,6 +3646,7 @@
     updateSummary();
     renderLayerControls();
     renderScore();
+    void rerenderAfterScoreFontLoad();
   </script>
 </body>
 </html>
