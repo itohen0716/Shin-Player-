@@ -732,6 +732,19 @@
       line-height: 1;
     }
 
+    @media (min-width: 720px) {
+      .score-symbol.note.has-vertical-score-digit > .score-note-digit {
+        display: inline-block;
+        transform: scaleY(2);
+        transform-origin: 50% 50%;
+      }
+
+      .score-symbol.note.has-vertical-score-digit > .duration-underline {
+        top: calc(50% + var(--score-note-size, 15px) + 2px);
+        bottom: auto;
+      }
+    }
+
     .score-symbol.is-playing > span:first-child {
       -webkit-text-stroke: 0;
     }
@@ -2706,7 +2719,13 @@
                 item.dataset.string = String(stringNumber);
                 item.dataset.noteAnchor = `${event.m}:${stringNumber}:${event.p}`;
                 const valueElement = document.createElement("span");
-                valueElement.textContent = String(value);
+                const scoreValue = String(value);
+                const isVerticalScoreDigit = /^(?:[0-9]|1[0-9])$/.test(scoreValue);
+                valueElement.textContent = scoreValue;
+                if (isVerticalScoreDigit) {
+                  item.classList.add("has-vertical-score-digit");
+                  valueElement.className = "score-note-digit";
+                }
                 item.append(valueElement);
                 if (event.d < 4) {
                   const underline = document.createElement("span");
