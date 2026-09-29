@@ -743,6 +743,10 @@
         top: calc(50% + var(--score-note-size, 15px) + 2px);
         bottom: auto;
       }
+
+      .score-symbol.note.is-upper-note-in-vertical-group > .duration-underline {
+        display: none;
+      }
     }
 
     .score-symbol.is-playing > span:first-child {
@@ -1734,6 +1738,18 @@
       return '<span class="duration-underline" aria-hidden="true"></span>';
     }
 
+    function durationUnderlineOwnerIndex(notes) {
+      let ownerIndex = -1;
+      let lowestDisplayedString = Number.POSITIVE_INFINITY;
+      notes.forEach(([stringNumber], noteIndex) => {
+        const numericString = Number(stringNumber);
+        if (![1, 2, 3].includes(numericString) || numericString >= lowestDisplayedString) return;
+        lowestDisplayedString = numericString;
+        ownerIndex = noteIndex;
+      });
+      return ownerIndex;
+    }
+
     function symbolLeft(event) {
       const measureUnits = displayUnitsForMeasure(event.m);
       const centeredPosition = (event.p + .5) / measureUnits;
@@ -2704,7 +2720,10 @@
 
           state.events.forEach((event, eventIndex) => {
             if (event.m !== measureIndex) return;
-            event.n.forEach(([stringNumber, value]) => {
+            const pitchNoteCount = event.n.reduce((count, [stringNumber]) =>
+              count + ([1, 2, 3].includes(Number(stringNumber)) ? 1 : 0), 0);
+            const underlineOwnerIndex = durationUnderlineOwnerIndex(event.n);
+            event.n.forEach(([stringNumber, value], noteIndex) => {
               const item = document.createElement("span");
               item.dataset.eventIndex = String(eventIndex);
               item.style.left = symbolPosition(event);
@@ -2728,6 +2747,9 @@
                 }
                 item.append(valueElement);
                 if (event.d < 4) {
+                  if (pitchNoteCount > 1 && noteIndex !== underlineOwnerIndex) {
+                    item.classList.add("is-upper-note-in-vertical-group");
+                  }
                   const underline = document.createElement("span");
                   underline.className = "duration-underline";
                   underline.setAttribute("aria-hidden", "true");
