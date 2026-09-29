@@ -1282,6 +1282,7 @@
       schedule: []
     };
     const DIAGNOSTIC_TRACE_LIMIT = 5000;
+    const LAST_SCORE_STORAGE_KEY = "shian-player:last-score:v1";
 
     function diagnosticCopy(value) {
       return JSON.parse(JSON.stringify(value));
@@ -3630,6 +3631,64 @@
       };
     }
 
+    function lastScoreStorage() {
+      try {
+        return window.localStorage || null;
+      } catch (error) {
+        console.warn("前回の譜面を保存する領域へアクセスできません。", error);
+        return null;
+      }
+    }
+
+    /** @param {ScoreFile} data */
+    function saveLastScoreFile(data) {
+      const storage = lastScoreStorage();
+      if (!storage) return false;
+      try {
+        storage.setItem(LAST_SCORE_STORAGE_KEY, JSON.stringify({ version: 1, scoreFile: data }));
+        return true;
+      } catch (error) {
+        console.warn("前回の譜面を保存できませんでした。", error);
+        return false;
+      }
+    }
+
+    function clearLastScoreFile() {
+      const storage = lastScoreStorage();
+      if (!storage) return;
+      try {
+        storage.removeItem(LAST_SCORE_STORAGE_KEY);
+      } catch (error) {
+        console.warn("壊れた前回譜面の保存データを削除できませんでした。", error);
+      }
+    }
+
+    function restoreLastScoreFile() {
+      const storage = lastScoreStorage();
+      if (!storage) return false;
+      let serialized;
+      try {
+        serialized = storage.getItem(LAST_SCORE_STORAGE_KEY);
+      } catch (error) {
+        console.warn("前回の譜面を読み出せませんでした。", error);
+        return false;
+      }
+      if (!serialized) return false;
+
+      try {
+        const record = JSON.parse(serialized);
+        if (!record || record.version !== 1 || !record.scoreFile) {
+          throw new Error("保存形式が不正です。");
+        }
+        Object.assign(state, parseScoreFile(record.scoreFile));
+        return true;
+      } catch (error) {
+        console.warn("前回の譜面を復元できないため、空の状態で起動します。", error);
+        clearLastScoreFile();
+        return false;
+      }
+    }
+
     async function importFile(file) {
       if (!file) return;
       const fileName = typeof file.name === "string" ? file.name.trim().toLowerCase() : "";
@@ -3656,7 +3715,10 @@
       updateSummary();
       renderLayerControls();
       renderScore();
-      showToast(`「${state.title}」を読み込みました。`);
+      const savedForNextLaunch = saveLastScoreFile(json);
+      showToast(savedForNextLaunch
+        ? `「${state.title}」を読み込みました。`
+        : `「${state.title}」を読み込みましたが、次回起動用に保存できませんでした。`);
     }
 
     function getRuntimeTrace() {
@@ -3775,10 +3837,12 @@
       void releaseWakeLock();
     });
 
+    const restoredLastScore = restoreLastScoreFile();
     rebuildEventTimeline();
     updateSummary();
     renderLayerControls();
     renderScore();
+    if (restoredLastScore) showToast(`前回の「${state.title}」を開きました。`);
     void rerenderAfterScoreFontLoad();
   </script>
 </body>
