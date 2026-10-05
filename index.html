@@ -1146,6 +1146,7 @@
     /** @typedef {{m:number,p:number,d:number,n:Array<[number,string]>,technique?:string,x?:number,sourceNotes?:Array<{m:number,s:number,p:number,d:number,v:string|null,rest:boolean}>}} DemoEvent */
     /** @typedef {{m:number,s:number,p:number,text:string}} ScoreMark */
     /** @typedef {{type:"hajiki",key:string,anchor:{m:number,s:number,p:number}}} HajikiTechnique */
+    /** @typedef {{type:"sukui",key:string,anchor:{m:number,s:number,p:number}}} SukuiTechnique */
     /** @typedef {{id:string,m:number,s:number,p:number,d:number,v:string,kind:"pitch"|"rest"|"interjection",color:string,x:number,dotted:boolean}} VocalNote */
     /** @typedef {{id:string,type:"triplet",start:{m:number,s:number,p:number},end:{m:number,s:number,p:number},targetBeats:number}} Tuplet */
     /** @typedef {{id:string,type:"measureRepeat",kind:"same1"|"same2",m:number,repeatCount:number}} MeasureRepeat */
@@ -1231,6 +1232,8 @@
       marks: /** @type {ScoreMark[]} */ ([]),
       hajikiTechniques: /** @type {HajikiTechnique[]} */ ([]),
       hajikiKeys: new Set(),
+      sukuiTechniques: /** @type {SukuiTechnique[]} */ ([]),
+      sukuiKeys: new Set(),
       tuplets: /** @type {Tuplet[]} */ ([]),
       scoreParts: /** @type {MeasureRepeat[]} */ ([]),
       measureSpecials: {},
@@ -1287,6 +1290,7 @@
     const DIAGNOSTIC_TRACE_LIMIT = 5000;
     const LAST_SCORE_STORAGE_KEY = "shian-player:last-score:v1";
     const HAJIKI_GAIN_COEFFICIENT = 10 ** (-2 / 20);
+    const SUKUI_GAIN_COEFFICIENT = 10 ** (-4 / 20);
 
     function diagnosticCopy(value) {
       return JSON.parse(JSON.stringify(value));
@@ -2916,6 +2920,7 @@
       state.audioContext = await window.ShianAudioEngine.resume();
       await window.ShianAudioEngine.load();
       if (state.hajikiKeys.size > 0) await window.ShianAudioEngine.load("hajiki");
+      if (state.sukuiKeys.size > 0) await window.ShianAudioEngine.load("sukui");
       if (!state.masterGain) {
         state.masterGain = state.audioContext.createGain();
         state.shamisenGain = state.audioContext.createGain();
@@ -3130,8 +3135,11 @@
             sourceNote?.p ?? event.p
           );
           const isHajiki = state.hajikiKeys.has(techniqueKey);
-          const sourceKind = isHajiki ? "hajiki" : "normal";
-          const gainCoefficient = isHajiki ? HAJIKI_GAIN_COEFFICIENT : 1;
+          const isSukui = !isHajiki && state.sukuiKeys.has(techniqueKey);
+          const sourceKind = isHajiki ? "hajiki" : isSukui ? "sukui" : "normal";
+          const gainCoefficient = isHajiki
+            ? HAJIKI_GAIN_COEFFICIENT
+            : isSukui ? SUKUI_GAIN_COEFFICIENT : 1;
           const targetFrequency = frequencyForNote(stringNumber, value);
           const previousEvent = state.events[eventIndex - 1] ?? null;
           const nextEventForFade = state.events[eventIndex + 1] ?? null;
@@ -3151,8 +3159,9 @@
             stringNumber,
             value
           );
-          const fadeInSeconds = !isHajiki && shortFadeIn ? .004 : undefined;
-          const fadeOutSeconds = !isHajiki && shortFadeOut ? .004 : undefined;
+          const isTechniqueSource = isHajiki || isSukui;
+          const fadeInSeconds = !isTechniqueSource && shortFadeIn ? .004 : undefined;
+          const fadeOutSeconds = !isTechniqueSource && shortFadeOut ? .004 : undefined;
           window.ShianAudioEngine.playFrequency(targetFrequency, {
             exclusive: false,
             when,
@@ -3180,6 +3189,8 @@
               sourceKind,
               targetFrequency,
               gainCoefficient,
+              isHajiki,
+              isSukui,
               shortRetriggerFadeIn: shortFadeIn,
               shortRetriggerFadeOut: shortFadeOut
             }
@@ -3413,7 +3424,7 @@
       return `s:${Number(m)}:${Number(s)}:${Number(p)}`;
     }
 
-    function scoreHajikiTechniques(score) {
+    function scoreAnchoredTechniques(score, text, type) {
       const noteAnchors = new Set(
         score.notes
           .filter((note) => note && note.rest !== true && Number.isInteger(Number(note.m))
@@ -3426,18 +3437,26 @@
       const items = techniqueLayer && Array.isArray(techniqueLayer.items) ? techniqueLayer.items : [];
       const byKey = new Map();
       items.forEach((item) => {
-        if (!item || item.type !== "symbol" || item.text !== "ハ" || !item.anchor) return;
+        if (!item || item.type !== "symbol" || item.text !== text || !item.anchor) return;
         const m = Number(item.anchor.m);
         const s = Number(item.anchor.s);
         const p = Number(item.anchor.p);
         if (!Number.isInteger(m) || ![1, 2, 3].includes(s) || !Number.isFinite(p)) return;
         const key = shamisenNoteKey(m, s, p);
         if (!noteAnchors.has(key) || byKey.has(key)) return;
-        byKey.set(key, { type: "hajiki", key, anchor: { m, s, p } });
+        byKey.set(key, { type, key, anchor: { m, s, p } });
       });
       return Array.from(byKey.values())
         .sort((left, right) => left.anchor.m - right.anchor.m
           || left.anchor.p - right.anchor.p || left.anchor.s - right.anchor.s);
+    }
+
+    function scoreHajikiTechniques(score) {
+      return scoreAnchoredTechniques(score, "ハ", "hajiki");
+    }
+
+    function scoreSukuiTechniques(score) {
+      return scoreAnchoredTechniques(score, "ス", "sukui");
     }
 
     function scoreLyrics(score) {
@@ -3625,6 +3644,9 @@
       const score = data.score;
       const marks = scoreMarks(score);
       const hajikiTechniques = scoreHajikiTechniques(score);
+      const hajikiKeys = new Set(hajikiTechniques.map((technique) => technique.key));
+      const sukuiTechniques = scoreSukuiTechniques(score)
+        .filter((technique) => !hajikiKeys.has(technique.key));
       const lyrics = scoreLyrics(score);
       const vocalNotes = scoreVocalNotes(score);
       const vocalSlurs = scoreVocalSlurs(score, vocalNotes);
@@ -3678,7 +3700,9 @@
         events,
         marks,
         hajikiTechniques,
-        hajikiKeys: new Set(hajikiTechniques.map((technique) => technique.key)),
+        hajikiKeys,
+        sukuiTechniques,
+        sukuiKeys: new Set(sukuiTechniques.map((technique) => technique.key)),
         tuplets,
         scoreParts,
         measureSpecials,
@@ -3800,6 +3824,7 @@
           measureCount: measureCount(),
           eventCount: state.events.length,
           hajikiCount: state.hajikiKeys.size,
+          sukuiCount: state.sukuiKeys.size,
           tupletCount: state.tuplets.length,
           playbackEndBeat: playbackEndBeat()
         },

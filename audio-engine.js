@@ -19,6 +19,10 @@
       url: "./audio/teacher-1to12-octave.wav",
       label: "三味線音源"
     }),
+    sukui: Object.freeze({
+      url: "./audio/shamisen-sukui.wav",
+      label: "スクイ音源"
+    }),
     hajiki: Object.freeze({
       url: "./audio/shamisen-hajiki.wav",
       label: "ハジキ音源"
@@ -63,7 +67,7 @@
   }
 
   function normalizeSourceKind(value) {
-    return value === "hajiki" ? "hajiki" : "normal";
+    return value === "sukui" ? "sukui" : value === "hajiki" ? "hajiki" : "normal";
   }
 
   function load(sourceKind = "normal") {
@@ -153,10 +157,10 @@
     const startDelay = Math.max(0, Number(options.delay) || 0);
     const absoluteWhen = Number(options.when);
     const startAt = Number.isFinite(absoluteWhen) ? absoluteWhen : ctx.currentTime + startDelay;
-    const defaultFadeIn = sourceKind === "hajiki"
+    const defaultFadeIn = sourceKind === "hajiki" || sourceKind === "sukui"
       ? Math.min(0.003, outputDuration / 10)
       : Math.min(0.018, outputDuration / 5);
-    const defaultFadeOut = sourceKind === "hajiki"
+    const defaultFadeOut = sourceKind === "hajiki" || sourceKind === "sukui"
       ? Math.min(0.004, outputDuration / 10)
       : Math.min(0.018, outputDuration / 5);
     const requestedFadeIn = Number(options.fadeInSeconds);
@@ -177,7 +181,8 @@
     const voice = { source, gain, context: ctx, stopped: false, traceId };
 
     source.buffer = audioBuffer;
-    if (sourceKind === "hajiki" && typeof source.playbackRate.setValueAtTime === "function") {
+    if ((sourceKind === "hajiki" || sourceKind === "sukui")
+      && typeof source.playbackRate.setValueAtTime === "function") {
       source.playbackRate.setValueAtTime(rate, startAt);
     } else {
       source.playbackRate.value = rate;
