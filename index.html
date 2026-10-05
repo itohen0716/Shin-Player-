@@ -1143,8 +1143,9 @@
   <script>
     "use strict";
 
-    /** @typedef {{m:number,p:number,d:number,n:Array<[number,string]>,technique?:string,x?:number}} DemoEvent */
+    /** @typedef {{m:number,p:number,d:number,n:Array<[number,string]>,technique?:string,x?:number,sourceNotes?:Array<{m:number,s:number,p:number,d:number,v:string|null,rest:boolean}>}} DemoEvent */
     /** @typedef {{m:number,s:number,p:number,text:string}} ScoreMark */
+    /** @typedef {{type:"hajiki",key:string,anchor:{m:number,s:number,p:number}}} HajikiTechnique */
     /** @typedef {{id:string,m:number,s:number,p:number,d:number,v:string,kind:"pitch"|"rest"|"interjection",color:string,x:number,dotted:boolean}} VocalNote */
     /** @typedef {{id:string,type:"triplet",start:{m:number,s:number,p:number},end:{m:number,s:number,p:number},targetBeats:number}} Tuplet */
     /** @typedef {{id:string,type:"measureRepeat",kind:"same1"|"same2",m:number,repeatCount:number}} MeasureRepeat */
@@ -1228,6 +1229,8 @@
       meter: "",
       events: /** @type {DemoEvent[]} */ ([]),
       marks: /** @type {ScoreMark[]} */ ([]),
+      hajikiTechniques: /** @type {HajikiTechnique[]} */ ([]),
+      hajikiKeys: new Set(),
       tuplets: /** @type {Tuplet[]} */ ([]),
       scoreParts: /** @type {MeasureRepeat[]} */ ([]),
       measureSpecials: {},
@@ -1283,6 +1286,7 @@
     };
     const DIAGNOSTIC_TRACE_LIMIT = 5000;
     const LAST_SCORE_STORAGE_KEY = "shian-player:last-score:v1";
+    const HAJIKI_GAIN_COEFFICIENT = 10 ** (-2 / 20);
 
     function diagnosticCopy(value) {
       return JSON.parse(JSON.stringify(value));
@@ -2911,6 +2915,7 @@
       state.tuningMaster = await window.ShianTuningMasterReady;
       state.audioContext = await window.ShianAudioEngine.resume();
       await window.ShianAudioEngine.load();
+      if (state.hajikiKeys.size > 0) await window.ShianAudioEngine.load("hajiki");
       if (!state.masterGain) {
         state.masterGain = state.audioContext.createGain();
         state.shamisenGain = state.audioContext.createGain();
@@ -3114,6 +3119,20 @@
           notes: notes.map(([s, v]) => ({ s, v }))
         });
         notes.forEach(([stringNumber, value]) => {
+          const sourceNote = Array.isArray(event.sourceNotes)
+            ? event.sourceNotes.find((note) => note && note.rest !== true
+              && note.m === event.m && note.s === stringNumber && note.p === event.p
+              && String(note.v) === String(value))
+            : null;
+          const techniqueKey = shamisenNoteKey(
+            sourceNote?.m ?? event.m,
+            sourceNote?.s ?? stringNumber,
+            sourceNote?.p ?? event.p
+          );
+          const isHajiki = state.hajikiKeys.has(techniqueKey);
+          const sourceKind = isHajiki ? "hajiki" : "normal";
+          const gainCoefficient = isHajiki ? HAJIKI_GAIN_COEFFICIENT : 1;
+          const targetFrequency = frequencyForNote(stringNumber, value);
           const previousEvent = state.events[eventIndex - 1] ?? null;
           const nextEventForFade = state.events[eventIndex + 1] ?? null;
           const shortFadeIn = needsShortRetriggerFade(
@@ -3132,13 +3151,16 @@
             stringNumber,
             value
           );
-          window.ShianAudioEngine.playFrequency(frequencyForNote(stringNumber, value), {
+          const fadeInSeconds = !isHajiki && shortFadeIn ? .004 : undefined;
+          const fadeOutSeconds = !isHajiki && shortFadeOut ? .004 : undefined;
+          window.ShianAudioEngine.playFrequency(targetFrequency, {
             exclusive: false,
             when,
             duration,
-            volume,
-            fadeInSeconds: shortFadeIn ? .004 : undefined,
-            fadeOutSeconds: shortFadeOut ? .004 : undefined,
+            volume: volume * gainCoefficient,
+            fadeInSeconds,
+            fadeOutSeconds,
+            sourceKind,
             destination: state.shamisenGain,
             traceContext: {
               sessionId,
@@ -3154,6 +3176,10 @@
               eventStartBeat: startBeat,
               eventDurationBeat: durationBeat,
               nextEventStartTime,
+              techniqueKey,
+              sourceKind,
+              targetFrequency,
+              gainCoefficient,
               shortRetriggerFadeIn: shortFadeIn,
               shortRetriggerFadeOut: shortFadeOut
             }
@@ -3166,6 +3192,12 @@
               p: event.p,
               d: event.d,
               v: value,
+              techniqueKey,
+              sourceKind,
+              targetFrequency,
+              gainCoefficient,
+              fadeInSeconds,
+              fadeOutSeconds,
               traceId: voice?.traceId ?? null,
               outputDuration: voice?.duration ?? null
             });
@@ -3377,6 +3409,37 @@
       return marks;
     }
 
+    function shamisenNoteKey(m, s, p) {
+      return `s:${Number(m)}:${Number(s)}:${Number(p)}`;
+    }
+
+    function scoreHajikiTechniques(score) {
+      const noteAnchors = new Set(
+        score.notes
+          .filter((note) => note && note.rest !== true && Number.isInteger(Number(note.m))
+            && [1, 2, 3].includes(Number(note.s)) && Number.isFinite(Number(note.p)))
+          .map((note) => shamisenNoteKey(note.m, note.s, note.p))
+      );
+      const techniqueLayer = Array.isArray(score.layers)
+        ? score.layers.find((layer) => layer && layer.id === "technique-layer")
+        : null;
+      const items = techniqueLayer && Array.isArray(techniqueLayer.items) ? techniqueLayer.items : [];
+      const byKey = new Map();
+      items.forEach((item) => {
+        if (!item || item.type !== "symbol" || item.text !== "ハ" || !item.anchor) return;
+        const m = Number(item.anchor.m);
+        const s = Number(item.anchor.s);
+        const p = Number(item.anchor.p);
+        if (!Number.isInteger(m) || ![1, 2, 3].includes(s) || !Number.isFinite(p)) return;
+        const key = shamisenNoteKey(m, s, p);
+        if (!noteAnchors.has(key) || byKey.has(key)) return;
+        byKey.set(key, { type: "hajiki", key, anchor: { m, s, p } });
+      });
+      return Array.from(byKey.values())
+        .sort((left, right) => left.anchor.m - right.anchor.m
+          || left.anchor.p - right.anchor.p || left.anchor.s - right.anchor.s);
+    }
+
     function scoreLyrics(score) {
       if (!Array.isArray(score.lyrics)) return [];
       return score.lyrics.map((line) => typeof line === "string" ? line : "");
@@ -3561,6 +3624,7 @@
       }
       const score = data.score;
       const marks = scoreMarks(score);
+      const hajikiTechniques = scoreHajikiTechniques(score);
       const lyrics = scoreLyrics(score);
       const vocalNotes = scoreVocalNotes(score);
       const vocalSlurs = scoreVocalSlurs(score, vocalNotes);
@@ -3613,6 +3677,8 @@
         meter: typeof score.meter === "string" ? score.meter : "2/4",
         events,
         marks,
+        hajikiTechniques,
+        hajikiKeys: new Set(hajikiTechniques.map((technique) => technique.key)),
         tuplets,
         scoreParts,
         measureSpecials,
@@ -3733,6 +3799,7 @@
           bpm: state.bpm,
           measureCount: measureCount(),
           eventCount: state.events.length,
+          hajikiCount: state.hajikiKeys.size,
           tupletCount: state.tuplets.length,
           playbackEndBeat: playbackEndBeat()
         },

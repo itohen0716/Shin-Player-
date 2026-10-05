@@ -14,10 +14,20 @@
   const active = new Set();
   const traceEntries = [];
   const TRACE_LIMIT = 5000;
+  const SOURCE_CONFIGS = Object.freeze({
+    normal: Object.freeze({
+      url: "./audio/teacher-1to12-octave.wav",
+      label: "三味線音源"
+    }),
+    hajiki: Object.freeze({
+      url: "./audio/shamisen-hajiki.wav",
+      label: "ハジキ音源"
+    })
+  });
   let nextTraceId = 1;
   let context;
-  let teacherBuffer;
-  let loadPromise;
+  const audioBuffers = new Map();
+  const loadPromises = new Map();
 
   function trace(type, details = {}) {
     const entry = Object.freeze({
@@ -52,32 +62,48 @@
     return ctx;
   }
 
-  function load() {
-    if (teacherBuffer) return Promise.resolve(teacherBuffer);
-    if (loadPromise) return loadPromise;
-    loadPromise = (async () => {
+  function normalizeSourceKind(value) {
+    return value === "hajiki" ? "hajiki" : "normal";
+  }
+
+  function load(sourceKind = "normal") {
+    const normalizedKind = normalizeSourceKind(sourceKind);
+    const config = SOURCE_CONFIGS[normalizedKind];
+    const loadedBuffer = audioBuffers.get(normalizedKind);
+    if (loadedBuffer) return Promise.resolve(loadedBuffer);
+    const pendingLoad = loadPromises.get(normalizedKind);
+    if (pendingLoad) return pendingLoad;
+    const promise = (async () => {
       const ctx = await resume();
       let response;
       try {
-        response = await fetch("./audio/teacher-1to12-octave.wav", { cache: "force-cache" });
+        response = await fetch(config.url, { cache: "force-cache" });
       } catch (_) {
-        throw new Error("三味線音源を読み込めませんでした。通信状態を確認してください。");
+        throw new Error(`${config.label}を読み込めませんでした。通信状態を確認してください。`);
       }
-      if (!response.ok) throw new Error(`三味線音源を読み込めませんでした（${response.status}）。`);
+      if (!response.ok) throw new Error(`${config.label}を読み込めませんでした（${response.status}）。`);
       const audioData = await response.arrayBuffer();
-      if (!audioData.byteLength) throw new Error("三味線音源のデータが空です。");
+      if (!audioData.byteLength) throw new Error(`${config.label}のデータが空です。`);
+      let decodedBuffer;
       try {
-        teacherBuffer = await ctx.decodeAudioData(audioData);
+        decodedBuffer = await ctx.decodeAudioData(audioData);
       } catch (_) {
-        throw new Error("三味線音源を再生用に変換できませんでした。");
+        throw new Error(`${config.label}を再生用に変換できませんでした。`);
       }
-      trace("buffer-loaded", { bufferDuration: teacherBuffer.duration, sampleRate: teacherBuffer.sampleRate });
-      return teacherBuffer;
+      audioBuffers.set(normalizedKind, decodedBuffer);
+      trace("buffer-loaded", {
+        sourceKind: normalizedKind,
+        sourceUrl: config.url,
+        bufferDuration: decodedBuffer.duration,
+        sampleRate: decodedBuffer.sampleRate
+      });
+      return decodedBuffer;
     })().catch((error) => {
-      loadPromise = null;
+      loadPromises.delete(normalizedKind);
       throw error;
     });
-    return loadPromise;
+    loadPromises.set(normalizedKind, promise);
+    return promise;
   }
 
   function stopVoice(voice, fadeSeconds = 0.02) {
@@ -103,6 +129,7 @@
   }
 
   async function playSegment(segmentOrNumber, options = {}) {
+    const sourceKind = normalizeSourceKind(options.sourceKind);
     const segment = typeof segmentOrNumber === "number"
       ? window.ShianSoundSegments?.[segmentOrNumber]
       : segmentOrNumber;
@@ -111,7 +138,7 @@
     }
 
     const ctx = await resume();
-    const audioBuffer = await load();
+    const audioBuffer = await load(sourceKind);
     if (options.exclusive !== false) stopAll(0.01);
 
     const offset = Math.max(0, segment.start);
@@ -126,15 +153,20 @@
     const startDelay = Math.max(0, Number(options.delay) || 0);
     const absoluteWhen = Number(options.when);
     const startAt = Number.isFinite(absoluteWhen) ? absoluteWhen : ctx.currentTime + startDelay;
-    const defaultFade = Math.min(0.018, outputDuration / 5);
+    const defaultFadeIn = sourceKind === "hajiki"
+      ? Math.min(0.003, outputDuration / 10)
+      : Math.min(0.018, outputDuration / 5);
+    const defaultFadeOut = sourceKind === "hajiki"
+      ? Math.min(0.004, outputDuration / 10)
+      : Math.min(0.018, outputDuration / 5);
     const requestedFadeIn = Number(options.fadeInSeconds);
     const requestedFadeOut = Number(options.fadeOutSeconds);
     const fadeIn = Number.isFinite(requestedFadeIn) && requestedFadeIn > 0
       ? Math.min(requestedFadeIn, outputDuration / 5)
-      : defaultFade;
+      : defaultFadeIn;
     const fadeOut = Number.isFinite(requestedFadeOut) && requestedFadeOut > 0
       ? Math.min(requestedFadeOut, outputDuration / 5)
-      : defaultFade;
+      : defaultFadeOut;
     const source = ctx.createBufferSource();
     const gain = ctx.createGain();
     const traceId = nextTraceId;
@@ -145,7 +177,11 @@
     const voice = { source, gain, context: ctx, stopped: false, traceId };
 
     source.buffer = audioBuffer;
-    source.playbackRate.value = rate;
+    if (sourceKind === "hajiki" && typeof source.playbackRate.setValueAtTime === "function") {
+      source.playbackRate.setValueAtTime(rate, startAt);
+    } else {
+      source.playbackRate.value = rate;
+    }
     const destination = options.destination && typeof options.destination.connect === "function"
       ? options.destination
       : ctx.destination;
@@ -168,6 +204,8 @@
     active.add(voice);
     trace("source-scheduled", {
       traceId,
+      sourceKind,
+      sourceUrl: SOURCE_CONFIGS[sourceKind].url,
       scheduledAt: ctx.currentTime,
       startAt,
       stopAt: startAt + outputDuration,
@@ -208,13 +246,23 @@
     const target = Number(frequency);
     const master = window.ShianTuningMaster;
     if (!Number.isFinite(target) || !master) throw new Error("調弦データから音を取得できません。");
+    const sourceKind = normalizeSourceKind(options.sourceKind);
+    const audioBuffer = await load(sourceKind);
     const sources = master.entries
       .filter((entry) => entry.mode === "hon")
       .flatMap((entry) => [
         { noteNumber: entry.count, frequency: entry.frequencies[0] },
         { noteNumber: entry.count + 12, frequency: entry.frequencies[0] * 2 }
-      ]);
-    if (!sources.length) throw new Error("先生音源に対応する調弦データがありません。");
+      ])
+      .filter((entry) => {
+        const segment = window.ShianSoundSegments?.[entry.noteNumber];
+        return segment && Number.isFinite(segment.start) && Number.isFinite(segment.end)
+          && segment.end > segment.start && segment.start + 0.05 <= audioBuffer.duration;
+      });
+    if (!sources.length) {
+      const label = SOURCE_CONFIGS[sourceKind].label;
+      throw new Error(`${label}に対応する調弦データがありません。`);
+    }
     const source = sources.reduce((best, candidate) =>
       Math.abs(Math.log2(target / candidate.frequency)) < Math.abs(Math.log2(target / best.frequency))
         ? candidate
@@ -222,6 +270,7 @@
     );
     return playSegment(source.noteNumber, {
       ...options,
+      sourceKind,
       playbackRate: (Number(options.playbackRate) || 1) * target / source.frequency
     });
   }
