@@ -488,6 +488,32 @@
 
     .tuplet-label-background { fill: #fffdfa; stroke: none; }
 
+    .suri-layer {
+      position: absolute;
+      z-index: 9;
+      top: -28px;
+      left: 0;
+      width: 100%;
+      height: 133px;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .suri-layer path {
+      fill: none;
+      stroke-width: 2px;
+      stroke-linecap: round;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .suri-layer text {
+      stroke: none;
+      font-family: "Yu Mincho", "Times New Roman", serif;
+      font-weight: 700;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
     .lyrics-label {
       z-index: 2;
       grid-column: 1;
@@ -1145,6 +1171,7 @@
 
     /** @typedef {{m:number,p:number,d:number,n:Array<[number,string]>,technique?:string,x?:number,sourceNotes?:Array<{m:number,s:number,p:number,d:number,v:string|null,rest:boolean}>}} DemoEvent */
     /** @typedef {{m:number,s:number,p:number,text:string}} ScoreMark */
+    /** @typedef {{id:string,anchor:{m:number,s:number,p:number},endAnchor:{m:number,s:number,p:number},side:"above"|"below",offsetXPx:number,offsetYPx:number,color:string}} SuriMark */
     /** @typedef {{type:"hajiki",key:string,anchor:{m:number,s:number,p:number}}} HajikiTechnique */
     /** @typedef {{type:"sukui",key:string,anchor:{m:number,s:number,p:number}}} SukuiTechnique */
     /** @typedef {{id:string,m:number,s:number,p:number,d:number,v:string,kind:"pitch"|"rest"|"interjection",color:string,x:number,dotted:boolean}} VocalNote */
@@ -1230,6 +1257,7 @@
       meter: "",
       events: /** @type {DemoEvent[]} */ ([]),
       marks: /** @type {ScoreMark[]} */ ([]),
+      suriMarks: /** @type {SuriMark[]} */ ([]),
       hajikiTechniques: /** @type {HajikiTechnique[]} */ ([]),
       hajikiKeys: new Set(),
       sukuiTechniques: /** @type {SukuiTechnique[]} */ ([]),
@@ -2036,9 +2064,106 @@
       });
     }
 
+    function suriAnchorPoint(anchor, rowRect, side) {
+      const note = els.scorePaper.querySelector(`[data-note-anchor="${anchor.m}:${anchor.s}:${anchor.p}"]`);
+      if (!(note instanceof HTMLElement)) return null;
+      const value = note.querySelector("span:first-child") || note;
+      const glyphRect = value.getBoundingClientRect();
+      const fontSize = finiteNumber(parseFloat(getComputedStyle(value).fontSize), 15);
+      const isOpen = String(value.textContent || "") === "0";
+      const ratio = Math.min(1.4, Math.max(.72, fontSize / (isOpen ? 1.07 : 1) / 15));
+      const symbolSize = 14 * ratio;
+      const clearance = Math.max(1, glyphRect.height * .08);
+      const gap = symbolSize / 2 + clearance;
+      return {
+        x: glyphRect.left + glyphRect.width / 2 - rowRect.left,
+        y: (side === "below" ? glyphRect.bottom + gap : glyphRect.top - gap) - rowRect.top + 28,
+        symbolSize
+      };
+    }
+
+    function suriGeometry(startPoint, endPoint, suri) {
+      let start = { ...startPoint };
+      let end = { ...endPoint };
+      const symbolSize = start.symbolSize;
+      if (start.x > end.x) [start, end] = [end, start];
+      const below = suri.side === "below";
+      const edgeShift = below ? -4 : 4;
+      const arch = below ? 8 : -8;
+      const x1 = start.x + suri.offsetXPx;
+      const x2 = end.x + suri.offsetXPx;
+      const y1 = start.y + suri.offsetYPx + edgeShift;
+      const y2 = end.y + suri.offsetYPx + edgeShift;
+      const centerX = (x1 + x2) / 2;
+      const centerY = (y1 + y2) / 2;
+      return {
+        x1,
+        x2,
+        y1,
+        y2,
+        centerX,
+        controlY: centerY + arch,
+        textY: centerY + (below ? 13 : -13),
+        symbolSize
+      };
+    }
+
+    function renderSuriMarks() {
+      els.scorePaper.querySelectorAll(".suri-layer").forEach((element) => element.remove());
+      if (window.innerWidth < SCORE_RESPONSIVE_BREAKPOINT || !state.suriMarks.length) return;
+
+      state.suriMarks.forEach((suri) => {
+        const startElement = els.scorePaper.querySelector(
+          `[data-note-anchor="${suri.anchor.m}:${suri.anchor.s}:${suri.anchor.p}"]`
+        );
+        const endElement = els.scorePaper.querySelector(
+          `[data-note-anchor="${suri.endAnchor.m}:${suri.endAnchor.s}:${suri.endAnchor.p}"]`
+        );
+        const row = startElement?.closest(".score-row");
+        if (!(startElement instanceof HTMLElement) || !(endElement instanceof HTMLElement)
+          || !(row instanceof HTMLElement) || endElement.closest(".score-row") !== row) return;
+
+        const rowRect = row.getBoundingClientRect();
+        if (!rowRect.width) return;
+        let start = suriAnchorPoint(suri.anchor, rowRect, suri.side);
+        let end = suriAnchorPoint(suri.endAnchor, rowRect, suri.side);
+        if (!start || !end) return;
+        const geometry = suriGeometry(start, end, suri);
+        const overlayHeight = Math.ceil(rowRect.height + 28);
+        let svg = row.querySelector(".suri-layer");
+        if (!(svg instanceof SVGElement)) {
+          svg = svgElement("svg", { class: "suri-layer", preserveAspectRatio: "none", "aria-hidden": "true" });
+          row.append(svg);
+        }
+        svg.setAttribute("viewBox", `0 0 ${rowRect.width} ${overlayHeight}`);
+        svg.style.height = `${overlayHeight}px`;
+        const group = svgElement("g", { "data-suri-id": suri.id });
+        const label = svgElement("text", {
+          x: geometry.centerX.toFixed(2),
+          y: geometry.textY.toFixed(2),
+          fill: suri.color,
+          "font-size": geometry.symbolSize.toFixed(2)
+        });
+        label.textContent = "スリ";
+        group.append(
+          label,
+          svgElement("path", {
+            d: `M ${geometry.x1.toFixed(2)} ${geometry.y1.toFixed(2)} Q ${geometry.centerX.toFixed(2)} ${geometry.controlY.toFixed(2)} ${geometry.x2.toFixed(2)} ${geometry.y2.toFixed(2)}`,
+            stroke: suri.color
+          })
+        );
+        svg.append(group);
+      });
+    }
+
     function marksForEvent(event) {
       const texts = new Set();
       return state.marks.filter((mark) => {
+        const isDesktopSuri = window.innerWidth >= SCORE_RESPONSIVE_BREAKPOINT
+          && mark.text === "スリ" && state.suriMarks.some((suri) =>
+            shamisenNoteKey(suri.anchor.m, suri.anchor.s, suri.anchor.p)
+              === shamisenNoteKey(mark.m, mark.s, mark.p));
+        if (isDesktopSuri) return false;
         if (mark.m !== event.m || mark.p !== event.p || texts.has(mark.text)) return false;
         texts.add(mark.text);
         return true;
@@ -2843,6 +2968,7 @@
       applyScoreNoteDensitySizes();
       alignLyricLines();
       renderTuplets();
+      renderSuriMarks();
       renderVocalSlurs();
       renderWritingLayers();
       const visibleBeat = state.isPlaying ? currentBeat() : state.pausedBeat;
@@ -3420,6 +3546,47 @@
       return marks;
     }
 
+    function scoreSuriMarks(score) {
+      const noteAnchors = new Set(
+        score.notes
+          .filter((note) => note && note.rest !== true && Number.isInteger(Number(note.m))
+            && [1, 2, 3].includes(Number(note.s)) && Number.isFinite(Number(note.p)))
+          .map((note) => shamisenNoteKey(note.m, note.s, note.p))
+      );
+      const techniqueLayer = Array.isArray(score.layers)
+        ? score.layers.find((layer) => layer && layer.id === "technique-layer")
+        : null;
+      const items = techniqueLayer && Array.isArray(techniqueLayer.items) ? techniqueLayer.items : [];
+      const seen = new Set();
+      return items.flatMap((item, index) => {
+        if (!item || item.type !== "symbol" || item.text !== "スリ" || !item.anchor || !item.endAnchor) return [];
+        const anchor = {
+          m: Number(item.anchor.m),
+          s: Number(item.anchor.s),
+          p: Number(item.anchor.p)
+        };
+        const endAnchor = {
+          m: Number(item.endAnchor.m),
+          s: Number(item.endAnchor.s),
+          p: Number(item.endAnchor.p)
+        };
+        const anchorKey = shamisenNoteKey(anchor.m, anchor.s, anchor.p);
+        const endAnchorKey = shamisenNoteKey(endAnchor.m, endAnchor.s, endAnchor.p);
+        const key = `${anchorKey}>${endAnchorKey}`;
+        if (!noteAnchors.has(anchorKey) || !noteAnchors.has(endAnchorKey) || seen.has(key)) return [];
+        seen.add(key);
+        return [{
+          id: typeof item.id === "string" && item.id ? item.id : `suri-${index + 1}`,
+          anchor,
+          endAnchor,
+          side: item.side === "below" ? "below" : "above",
+          offsetXPx: finiteNumber(item.offsetXPx),
+          offsetYPx: finiteNumber(item.offsetYPx),
+          color: itemColor(item)
+        }];
+      });
+    }
+
     function shamisenNoteKey(m, s, p) {
       return `s:${Number(m)}:${Number(s)}:${Number(p)}`;
     }
@@ -3642,6 +3809,7 @@
         throw new Error("文化譜JSONの score.notes が見つかりません。");
       }
       const score = data.score;
+      const suriMarks = scoreSuriMarks(score);
       const marks = scoreMarks(score);
       const hajikiTechniques = scoreHajikiTechniques(score);
       const hajikiKeys = new Set(hajikiTechniques.map((technique) => technique.key));
@@ -3699,6 +3867,7 @@
         meter: typeof score.meter === "string" ? score.meter : "2/4",
         events,
         marks,
+        suriMarks,
         hajikiTechniques,
         hajikiKeys,
         sukuiTechniques,
