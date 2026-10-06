@@ -1170,8 +1170,9 @@
     "use strict";
 
     /** @typedef {{m:number,p:number,d:number,n:Array<[number,string]>,technique?:string,x?:number,sourceNotes?:Array<{m:number,s:number,p:number,d:number,v:string|null,rest:boolean}>}} DemoEvent */
-    /** @typedef {{m:number,s:number,p:number,text:string}} ScoreMark */
+    /** @typedef {{m:number,s:number,p:number,text:string,id?:string,endAnchor?:{m:number,s:number,p:number},side?:"above"|"below",offsetXPx?:number,offsetYPx?:number,color?:string}} ScoreMark */
     /** @typedef {{id:string,anchor:{m:number,s:number,p:number},endAnchor:{m:number,s:number,p:number},side:"above"|"below",offsetXPx:number,offsetYPx:number,color:string}} SuriMark */
+    /** @typedef {{type:"suri",startKey:string,endKey:string,anchor:{m:number,s:number,p:number},endAnchor:{m:number,s:number,p:number}}} SuriTechnique */
     /** @typedef {{type:"hajiki",key:string,anchor:{m:number,s:number,p:number}}} HajikiTechnique */
     /** @typedef {{type:"sukui",key:string,anchor:{m:number,s:number,p:number}}} SukuiTechnique */
     /** @typedef {{id:string,m:number,s:number,p:number,d:number,v:string,kind:"pitch"|"rest"|"interjection",color:string,x:number,dotted:boolean}} VocalNote */
@@ -1258,6 +1259,7 @@
       events: /** @type {DemoEvent[]} */ ([]),
       marks: /** @type {ScoreMark[]} */ ([]),
       suriMarks: /** @type {SuriMark[]} */ ([]),
+      suriTechniques: /** @type {SuriTechnique[]} */ ([]),
       hajikiTechniques: /** @type {HajikiTechnique[]} */ ([]),
       hajikiKeys: new Set(),
       sukuiTechniques: /** @type {SukuiTechnique[]} */ ([]),
@@ -2110,7 +2112,7 @@
 
     function renderSuriMarks() {
       els.scorePaper.querySelectorAll(".suri-layer").forEach((element) => element.remove());
-      if (window.innerWidth < SCORE_RESPONSIVE_BREAKPOINT || !state.suriMarks.length) return;
+      if (!state.suriMarks.length) return;
 
       state.suriMarks.forEach((suri) => {
         const startElement = els.scorePaper.querySelector(
@@ -2159,11 +2161,7 @@
     function marksForEvent(event) {
       const texts = new Set();
       return state.marks.filter((mark) => {
-        const isDesktopSuri = window.innerWidth >= SCORE_RESPONSIVE_BREAKPOINT
-          && mark.text === "スリ" && state.suriMarks.some((suri) =>
-            shamisenNoteKey(suri.anchor.m, suri.anchor.s, suri.anchor.p)
-              === shamisenNoteKey(mark.m, mark.s, mark.p));
-        if (isDesktopSuri) return false;
+        if (mark.text === "スリ" && mark.endAnchor) return false;
         if (mark.m !== event.m || mark.p !== event.p || texts.has(mark.text)) return false;
         texts.add(mark.text);
         return true;
@@ -3201,6 +3199,52 @@
       return sharesMonophonicTuplet || crossesHalfBoundary;
     }
 
+    function buildSuriPlaybackPlan() {
+      const noteTiming = new Map();
+      state.events.forEach((event, eventIndex) => {
+        const startBeat = eventStartBeat(event);
+        const durationBeat = eventDurationBeat(event);
+        (Array.isArray(event.sourceNotes) ? event.sourceNotes : []).forEach((note) => {
+          if (!note || note.rest === true || ![1, 2, 3].includes(Number(note.s)) || note.v == null) return;
+          const key = shamisenNoteKey(note.m, note.s, note.p);
+          noteTiming.set(key, {
+            key,
+            event,
+            eventIndex,
+            note,
+            startBeat,
+            durationBeat,
+            frequency: frequencyForNote(Number(note.s), String(note.v))
+          });
+        });
+      });
+
+      const glides = new Map();
+      const suppressedEndpoints = new Set();
+      const ignored = [];
+      state.suriTechniques.forEach((suri) => {
+        const start = noteTiming.get(suri.startKey);
+        const end = noteTiming.get(suri.endKey);
+        if (!start || !end || end.startBeat <= start.startBeat) {
+          ignored.push({ startKey: suri.startKey, endKey: suri.endKey, reason: "missing-or-nonforward-anchor" });
+          return;
+        }
+        suppressedEndpoints.add(suri.endKey);
+        glides.set(suri.startKey, {
+          startKey: suri.startKey,
+          endKey: suri.endKey,
+          startFrequency: start.frequency,
+          endFrequency: end.frequency,
+          startDurationBeat: start.durationBeat,
+          endDurationBeat: end.durationBeat,
+          startEventIndex: start.eventIndex,
+          endEventIndex: end.eventIndex,
+          endStartBeat: end.startBeat
+        });
+      });
+      return { noteTiming, glides, suppressedEndpoints, ignored };
+    }
+
     function schedulePlaybackAudio(fromBeat, leadSeconds = .08) {
       if (!state.soundEnabled || !state.audioContext || !state.shamisenGain) return;
       if (fromBeat <= .001) clearRuntimeTrace();
@@ -3216,6 +3260,13 @@
         secondsPerBeat,
         secondsPerUnit: secondsPerBeat / 4,
         audioStartTime: state.audioStartTime
+      });
+      const suriPlan = buildSuriPlaybackPlan();
+      recordScheduleTrace("suri-plan", {
+        sessionId,
+        glideCount: suriPlan.glides.size,
+        suppressedEndpointCount: suriPlan.suppressedEndpoints.size,
+        ignored: suriPlan.ignored.map((entry) => ({ ...entry }))
       });
       state.events.forEach((event, eventIndex) => {
         if (eventStartBeat(event) < fromBeat - .001) return;
@@ -3260,6 +3311,19 @@
             sourceNote?.s ?? stringNumber,
             sourceNote?.p ?? event.p
           );
+          if (suriPlan.suppressedEndpoints.has(techniqueKey)) {
+            recordScheduleTrace("suri-endpoint-suppressed", {
+              sessionId,
+              eventIndex,
+              m: sourceNote?.m ?? event.m,
+              s: sourceNote?.s ?? stringNumber,
+              p: sourceNote?.p ?? event.p,
+              v: value,
+              techniqueKey
+            });
+            return;
+          }
+          const glide = suriPlan.glides.get(techniqueKey);
           const isHajiki = state.hajikiKeys.has(techniqueKey);
           const isSukui = !isHajiki && state.sukuiKeys.has(techniqueKey);
           const sourceKind = isHajiki ? "hajiki" : isSukui ? "sukui" : "normal";
@@ -3288,7 +3352,46 @@
           const isTechniqueSource = isHajiki || isSukui;
           const fadeInSeconds = !isTechniqueSource && shortFadeIn ? .004 : undefined;
           const fadeOutSeconds = !isTechniqueSource && shortFadeOut ? .004 : undefined;
-          window.ShianAudioEngine.playFrequency(targetFrequency, {
+          const glideStartDuration = duration;
+          const glideEndDuration = glide ? glide.endDurationBeat * secondsPerBeat : 0;
+          const requestedDuration = glide ? glideStartDuration + glideEndDuration : duration;
+          const playPromise = glide
+            ? window.ShianAudioEngine.playFrequencyGlide(targetFrequency, glide.endFrequency, {
+              exclusive: false,
+              when,
+              duration: requestedDuration,
+              glideAttackHold: glideStartDuration,
+              tightStop: true,
+              volume,
+              sourceKind: "normal",
+              destination: state.shamisenGain,
+              traceContext: {
+                sessionId,
+                eventIndex,
+                m: event.m,
+                s: stringNumber,
+                p: event.p,
+                d: event.d,
+                v: value,
+                tupletIds: timelineTrace?.tupletIds ?? [],
+                rawUnit: timelineTrace?.rawUnit ?? rawPositionUnit(event),
+                mappedUnit: timelineTrace?.mappedUnit ?? startBeat * 4,
+                eventStartBeat: startBeat,
+                eventDurationBeat: durationBeat,
+                nextEventStartTime,
+                techniqueKey,
+                sourceKind: "normal",
+                isSuri: true,
+                suriEndKey: glide.endKey,
+                startFrequency: targetFrequency,
+                endFrequency: glide.endFrequency,
+                glideStartDuration,
+                glideEndDuration,
+                suriTotalDuration: requestedDuration,
+                endpointSuppressed: true
+              }
+            })
+            : window.ShianAudioEngine.playFrequency(targetFrequency, {
             exclusive: false,
             when,
             duration,
@@ -3320,7 +3423,8 @@
               shortRetriggerFadeIn: shortFadeIn,
               shortRetriggerFadeOut: shortFadeOut
             }
-          }).then((voice) => {
+          });
+          playPromise.then((voice) => {
             recordScheduleTrace("voice-scheduled", {
               sessionId,
               eventIndex,
@@ -3330,11 +3434,17 @@
               d: event.d,
               v: value,
               techniqueKey,
-              sourceKind,
+              sourceKind: glide ? "normal" : sourceKind,
               targetFrequency,
-              gainCoefficient,
-              fadeInSeconds,
-              fadeOutSeconds,
+              gainCoefficient: glide ? 1 : gainCoefficient,
+              fadeInSeconds: glide ? .003 : fadeInSeconds,
+              fadeOutSeconds: glide ? Math.min(.04, requestedDuration * .16) : fadeOutSeconds,
+              isSuri: Boolean(glide),
+              suriEndKey: glide?.endKey ?? null,
+              endFrequency: glide?.endFrequency ?? null,
+              glideStartDuration: glide ? glideStartDuration : null,
+              glideEndDuration: glide ? glideEndDuration : null,
+              requestedDuration,
               traceId: voice?.traceId ?? null,
               outputDuration: voice?.duration ?? null
             });
@@ -3538,15 +3648,49 @@
         if (!item || typeof item.text !== "string" || !item.anchor) return;
         const { m, s, p } = item.anchor;
         if (!Number.isInteger(m) || ![1, 2, 3].includes(s) || !Number.isFinite(p)) return;
-        const key = `${m}:${s}:${p}:${item.text}`;
+        const endM = Number(item.endAnchor?.m);
+        const endS = Number(item.endAnchor?.s);
+        const endP = Number(item.endAnchor?.p);
+        const hasValidEndAnchor = item.text === "スリ" && Number.isInteger(endM)
+          && [1, 2, 3].includes(endS) && Number.isFinite(endP);
+        const key = `${m}:${s}:${p}:${item.text}${hasValidEndAnchor ? `>${endM}:${endS}:${endP}` : ""}`;
         if (seen.has(key)) return;
         seen.add(key);
-        marks.push({ m, s, p, text: item.text });
+        marks.push({
+          m,
+          s,
+          p,
+          text: item.text,
+          ...(hasValidEndAnchor ? {
+            id: typeof item.id === "string" && item.id ? item.id : `suri-${marks.length + 1}`,
+            endAnchor: { m: endM, s: endS, p: endP },
+            side: item.side === "below" ? "below" : "above",
+            offsetXPx: finiteNumber(item.offsetXPx),
+            offsetYPx: finiteNumber(item.offsetYPx),
+            color: itemColor(item)
+          } : {})
+        });
       });
       return marks;
     }
 
-    function scoreSuriMarks(score) {
+    function scoreSuriMarks(marks) {
+      return marks.flatMap((mark) => mark.text === "スリ" && mark.endAnchor ? [{
+        id: mark.id || `suri-${mark.m}-${mark.s}-${mark.p}`,
+        anchor: { m: mark.m, s: mark.s, p: mark.p },
+        endAnchor: { ...mark.endAnchor },
+        side: mark.side === "below" ? "below" : "above",
+        offsetXPx: finiteNumber(mark.offsetXPx),
+        offsetYPx: finiteNumber(mark.offsetYPx),
+        color: itemColor(mark)
+      }] : []);
+    }
+
+    function shamisenNoteKey(m, s, p) {
+      return `s:${Number(m)}:${Number(s)}:${Number(p)}`;
+    }
+
+    function scoreSuriTechniques(score) {
       const noteAnchors = new Set(
         score.notes
           .filter((note) => note && note.rest !== true && Number.isInteger(Number(note.m))
@@ -3557,9 +3701,9 @@
         ? score.layers.find((layer) => layer && layer.id === "technique-layer")
         : null;
       const items = techniqueLayer && Array.isArray(techniqueLayer.items) ? techniqueLayer.items : [];
-      const seen = new Set();
-      return items.flatMap((item, index) => {
-        if (!item || item.type !== "symbol" || item.text !== "スリ" || !item.anchor || !item.endAnchor) return [];
+      const byStartKey = new Map();
+      items.forEach((item) => {
+        if (!item || item.type !== "symbol" || item.text !== "スリ" || !item.anchor || !item.endAnchor) return;
         const anchor = {
           m: Number(item.anchor.m),
           s: Number(item.anchor.s),
@@ -3570,25 +3714,22 @@
           s: Number(item.endAnchor.s),
           p: Number(item.endAnchor.p)
         };
-        const anchorKey = shamisenNoteKey(anchor.m, anchor.s, anchor.p);
-        const endAnchorKey = shamisenNoteKey(endAnchor.m, endAnchor.s, endAnchor.p);
-        const key = `${anchorKey}>${endAnchorKey}`;
-        if (!noteAnchors.has(anchorKey) || !noteAnchors.has(endAnchorKey) || seen.has(key)) return [];
-        seen.add(key);
-        return [{
-          id: typeof item.id === "string" && item.id ? item.id : `suri-${index + 1}`,
-          anchor,
-          endAnchor,
-          side: item.side === "below" ? "below" : "above",
-          offsetXPx: finiteNumber(item.offsetXPx),
-          offsetYPx: finiteNumber(item.offsetYPx),
-          color: itemColor(item)
-        }];
+        const validAnchors = [anchor, endAnchor].every((candidate) =>
+          Number.isInteger(candidate.m) && candidate.m >= 0
+          && [1, 2, 3].includes(candidate.s)
+          && Number.isFinite(candidate.p) && candidate.p >= 0
+        );
+        if (!validAnchors) return;
+        const startKey = shamisenNoteKey(anchor.m, anchor.s, anchor.p);
+        const endKey = shamisenNoteKey(endAnchor.m, endAnchor.s, endAnchor.p);
+        const endIsLater = endAnchor.m > anchor.m
+          || (endAnchor.m === anchor.m && endAnchor.p > anchor.p);
+        if (!endIsLater || !noteAnchors.has(startKey) || !noteAnchors.has(endKey) || byStartKey.has(startKey)) return;
+        byStartKey.set(startKey, { type: "suri", startKey, endKey, anchor, endAnchor });
       });
-    }
-
-    function shamisenNoteKey(m, s, p) {
-      return `s:${Number(m)}:${Number(s)}:${Number(p)}`;
+      return Array.from(byStartKey.values()).sort((left, right) =>
+        left.anchor.m - right.anchor.m || left.anchor.p - right.anchor.p || left.anchor.s - right.anchor.s
+      );
     }
 
     function scoreAnchoredTechniques(score, text, type) {
@@ -3809,8 +3950,9 @@
         throw new Error("文化譜JSONの score.notes が見つかりません。");
       }
       const score = data.score;
-      const suriMarks = scoreSuriMarks(score);
       const marks = scoreMarks(score);
+      const suriMarks = scoreSuriMarks(marks);
+      const suriTechniques = scoreSuriTechniques(score);
       const hajikiTechniques = scoreHajikiTechniques(score);
       const hajikiKeys = new Set(hajikiTechniques.map((technique) => technique.key));
       const sukuiTechniques = scoreSukuiTechniques(score)
@@ -3868,6 +4010,7 @@
         events,
         marks,
         suriMarks,
+        suriTechniques,
         hajikiTechniques,
         hajikiKeys,
         sukuiTechniques,
@@ -3992,6 +4135,7 @@
           bpm: state.bpm,
           measureCount: measureCount(),
           eventCount: state.events.length,
+          suriCount: state.suriTechniques.length,
           hajikiCount: state.hajikiKeys.size,
           sukuiCount: state.sukuiKeys.size,
           tupletCount: state.tuplets.length,

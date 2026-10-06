@@ -242,6 +242,142 @@
     });
   }
 
+  async function playGlideSegment(segmentOrNumber, options = {}) {
+    const sourceKind = normalizeSourceKind(options.sourceKind);
+    const segment = typeof segmentOrNumber === "number"
+      ? window.ShianSoundSegments?.[segmentOrNumber]
+      : segmentOrNumber;
+    if (!segment || !Number.isFinite(segment.start) || !Number.isFinite(segment.end)) {
+      throw new Error("スリの音源区間が見つかりません。");
+    }
+
+    const ctx = await resume();
+    const audioBuffer = await load(sourceKind);
+    if (options.exclusive !== false) stopAll(0.01);
+
+    const offset = Math.max(0, segment.start);
+    const startRate = Math.max(0.25, Math.min(4, Number(options.playbackRate) || 1));
+    const endRate = Math.max(0.25, Math.min(4, Number(options.playbackRateEnd) || startRate));
+    const requestedDuration = Number(options.duration);
+    if (!Number.isFinite(requestedDuration) || requestedDuration <= 0) {
+      throw new Error("スリの発音時間が正しくありません。");
+    }
+
+    const baseSourceDuration = Math.max(0.05, Math.min(segment.end, audioBuffer.duration) - offset);
+    const segmentTailEnd = Number.isFinite(Number(segment.tailEnd)) ? Number(segment.tailEnd) : segment.end;
+    const availableSourceDuration = Math.max(
+      baseSourceDuration,
+      Math.min(segmentTailEnd, audioBuffer.duration) - offset
+    );
+    const requestedHold = Math.max(
+      0,
+      Number(options.glideAttackHold) || Number(segment.attackHold) / startRate || 0
+    );
+    const requestedAttackHold = Math.min(requestedHold, Math.max(0, requestedDuration - 0.04));
+    const requestedSlideDuration = Math.max(0, requestedDuration - requestedAttackHold);
+    const averageRate = (
+      startRate * requestedAttackHold
+      + ((startRate + endRate) / 2) * requestedSlideDuration
+    ) / requestedDuration;
+    const requestedSourceDuration = Math.min(
+      availableSourceDuration,
+      Math.max(0.05, requestedDuration * averageRate)
+    );
+    const outputDuration = Math.min(requestedDuration, requestedSourceDuration / averageRate);
+    const attackHold = Math.min(requestedAttackHold, Math.max(0, outputDuration - 0.04));
+    const sourcePlaybackDuration = Math.min(
+      availableSourceDuration,
+      Math.max(0.05, outputDuration * averageRate)
+    );
+    const startDelay = Math.max(0, Number(options.delay) || 0);
+    const absoluteWhen = Number(options.when);
+    const startAt = Number.isFinite(absoluteWhen) ? absoluteWhen : ctx.currentTime + startDelay;
+    const pitchChangeStartAt = startAt + attackHold;
+    const endAt = startAt + outputDuration;
+    const fadeIn = Math.min(0.003, outputDuration / 10);
+    const fadeOut = Math.min(0.04, outputDuration * 0.16);
+    const fadeOutStartAt = startAt + Math.max(fadeIn, outputDuration - fadeOut);
+    const volume = Number(options.volume) || 0.9;
+    const source = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    const traceId = nextTraceId;
+    nextTraceId += 1;
+    const traceContext = options.traceContext && typeof options.traceContext === "object"
+      ? { ...options.traceContext }
+      : {};
+    const voice = { source, gain, context: ctx, stopped: false, traceId };
+
+    source.buffer = audioBuffer;
+    source.playbackRate.setValueAtTime(startRate, startAt);
+    source.playbackRate.setValueAtTime(startRate, pitchChangeStartAt);
+    source.playbackRate.linearRampToValueAtTime(endRate, endAt);
+    const destination = options.destination && typeof options.destination.connect === "function"
+      ? options.destination
+      : ctx.destination;
+    source.connect(gain).connect(destination);
+    gain.gain.setValueAtTime(0.0001, startAt);
+    gain.gain.linearRampToValueAtTime(volume, startAt + fadeIn);
+    gain.gain.setValueAtTime(volume, fadeOutStartAt);
+    if (typeof gain.gain.exponentialRampToValueAtTime === "function") {
+      gain.gain.exponentialRampToValueAtTime(0.0001, endAt);
+    } else {
+      gain.gain.linearRampToValueAtTime(0.0001, endAt);
+    }
+    source.addEventListener("ended", () => {
+      active.delete(voice);
+      trace("source-ended", {
+        traceId,
+        scheduledStart: startAt,
+        scheduledStop: endAt,
+        endedAt: ctx.currentTime,
+        ...traceContext
+      });
+      try { source.disconnect(); gain.disconnect(); } catch (_) {}
+    }, { once: true });
+    active.add(voice);
+    trace("source-scheduled", {
+      traceId,
+      sourceKind,
+      sourceUrl: SOURCE_CONFIGS[sourceKind].url,
+      scheduledAt: ctx.currentTime,
+      startAt,
+      stopAt: endAt,
+      offset,
+      segmentStart: segment.start,
+      segmentEnd: segment.end,
+      segmentTailEnd,
+      segmentDuration: availableSourceDuration,
+      playbackRate: startRate,
+      playbackRateStart: startRate,
+      playbackRateEnd: endRate,
+      playbackRateChangeStartAt: pitchChangeStartAt,
+      playbackRateEndAt: endAt,
+      requestedDuration,
+      availableDuration: availableSourceDuration / averageRate,
+      outputDuration,
+      sourcePlaybackDuration,
+      sourceStartCall: [startAt, offset, sourcePlaybackDuration],
+      sourceStopCall: [endAt],
+      fadeInSeconds: fadeIn,
+      fadeOutSeconds: fadeOut,
+      glideAttackHold: attackHold,
+      averagePlaybackRate: averageRate,
+      tightStop: true,
+      volume,
+      schedulingLeadSeconds: startAt - ctx.currentTime,
+      ...traceContext
+    });
+    source.start(startAt, offset, sourcePlaybackDuration);
+    source.stop(endAt);
+
+    return Object.freeze({
+      duration: outputDuration,
+      traceId,
+      stop: () => stopVoice(voice),
+      ended: new Promise((resolve) => source.addEventListener("ended", resolve, { once: true }))
+    });
+  }
+
   async function play(noteNumber, options) {
     const voice = await playSegment(noteNumber, options);
     return voice.duration;
@@ -280,6 +416,40 @@
     });
   }
 
+  async function playFrequencyGlide(startFrequency, endFrequency, options = {}) {
+    const start = Number(startFrequency);
+    const end = Number(endFrequency);
+    const master = window.ShianTuningMaster;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || !master) {
+      throw new Error("スリの音高を取得できませんでした。");
+    }
+    const sourceKind = normalizeSourceKind(options.sourceKind);
+    const audioBuffer = await load(sourceKind);
+    const sources = master.entries
+      .filter((entry) => entry.mode === "hon")
+      .flatMap((entry) => [
+        { noteNumber: entry.count, frequency: entry.frequencies[0] },
+        { noteNumber: entry.count + 12, frequency: entry.frequencies[0] * 2 }
+      ])
+      .filter((entry) => {
+        const segment = window.ShianSoundSegments?.[entry.noteNumber];
+        return segment && Number.isFinite(segment.start) && Number.isFinite(segment.end)
+          && segment.end > segment.start && segment.start + 0.05 <= audioBuffer.duration;
+      });
+    if (!sources.length) throw new Error("三味線音源に対応するスリの調弦データがありません。");
+    const source = sources.reduce((best, candidate) =>
+      Math.abs(Math.log2(start / candidate.frequency)) < Math.abs(Math.log2(start / best.frequency))
+        ? candidate
+        : best
+    );
+    return playGlideSegment(source.noteNumber, {
+      ...options,
+      sourceKind,
+      playbackRate: start / source.frequency,
+      playbackRateEnd: end / source.frequency
+    });
+  }
+
   const api = Object.freeze({
     getContext,
     resume,
@@ -287,6 +457,7 @@
     play,
     playSegment,
     playFrequency,
+    playFrequencyGlide,
     stop: stopAll,
     stopAll,
     getTrace,
