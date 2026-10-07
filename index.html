@@ -3692,7 +3692,10 @@
           const glideStartDuration = duration;
           const glideEndDuration = glide ? glide.endDurationBeat * secondsPerBeat : 0;
           const requestedDuration = glide ? glideStartDuration + glideEndDuration : duration;
-          const playPromise = glide
+          const fixedPitchPlayer = sourceKind === "normal"
+            ? window.ShianAudioEngine.playFrequencyReady
+            : window.ShianAudioEngine.playFrequency;
+          const playbackResult = glide
             ? window.ShianAudioEngine.playFrequencyGlide(targetFrequency, glide.endFrequency, {
               exclusive: false,
               when,
@@ -3731,7 +3734,7 @@
                 endpointSuppressed: true
               }
             })
-            : window.ShianAudioEngine.playFrequency(targetFrequency, {
+            : fixedPitchPlayer(targetFrequency, {
             exclusive: false,
             when,
             duration,
@@ -3773,7 +3776,7 @@
               shortRetriggerFadeOut: shortFadeOut
             }
           });
-          playPromise.then((voice) => {
+          Promise.resolve(playbackResult).then((voice) => {
             recordScheduleTrace("voice-scheduled", {
               sessionId,
               eventIndex,
