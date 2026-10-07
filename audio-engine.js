@@ -145,9 +145,24 @@
     const audioBuffer = await load(sourceKind);
     if (options.exclusive !== false) stopAll(0.01);
 
-    const offset = Math.max(0, segment.start);
-    const baseSourceDuration = Math.max(0.05, Math.min(segment.end, audioBuffer.duration) - offset);
+    const originalOffset = Math.max(0, segment.start);
     const segmentTailEnd = Number.isFinite(Number(segment.tailEnd)) ? Number(segment.tailEnd) : segment.end;
+    const onsetCompensationSeconds = sourceKind === "normal"
+      ? Math.max(0, Number(segment.onsetOffset) || 0)
+      : 0;
+    const offset = Math.min(
+      Math.max(0, originalOffset + onsetCompensationSeconds),
+      Math.max(originalOffset, Math.min(segmentTailEnd, audioBuffer.duration) - 0.05)
+    );
+    const appliedOnsetCompensationSeconds = Math.max(0, offset - originalOffset);
+    // 先頭をonset分だけ送っても、元segmentと同じ基礎再生長を確保する。
+    // 追加分はtailEndを越えない範囲だけ使用する。
+    const alignedSegmentEnd = Math.min(
+      Number(segment.end) + appliedOnsetCompensationSeconds,
+      segmentTailEnd,
+      audioBuffer.duration
+    );
+    const baseSourceDuration = Math.max(0.05, alignedSegmentEnd - offset);
     const availableSourceDuration = Math.max(
       baseSourceDuration,
       Math.min(segmentTailEnd, audioBuffer.duration) - offset
@@ -229,8 +244,12 @@
       startAt,
       stopAt: startAt + outputDuration,
       offset,
+      originalSegmentOffset: originalOffset,
+      onsetCompensationSeconds: appliedOnsetCompensationSeconds,
+      actualSourceOffset: offset,
       segmentStart: segment.start,
       segmentEnd: segment.end,
+      alignedSegmentEnd,
       segmentTailEnd,
       segmentDuration: baseSourceDuration,
       availableSourceDuration,

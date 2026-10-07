@@ -3464,34 +3464,20 @@
     }
 
     function needsShortPlaybackRetriggerFade(left, right, stringNumber, value) {
-      if (!left || !right) return false;
+      if (!left || !right || !eventContainsPitch(left.event, stringNumber, value)
+        || !eventContainsPitch(right.event, stringNumber, value)) return false;
       const leftEndBeat = left.startBeat + left.durationBeat;
       if (Math.abs(leftEndBeat - right.startBeat) > 1e-6) return false;
       const leftTuplets = runtimeDiagnostics.timeline[left.sourceEventIndex]?.tupletIds ?? [];
       const rightTuplets = runtimeDiagnostics.timeline[right.sourceEventIndex]?.tupletIds ?? [];
       const leftPlayableCount = left.event.n.filter(([candidateString]) => [1, 2, 3].includes(candidateString)).length;
       const rightPlayableCount = right.event.n.filter(([candidateString]) => [1, 2, 3].includes(candidateString)).length;
-      const isMonophonicTransition = leftPlayableCount === 1 && rightPlayableCount === 1;
-      const exactPitchRetrigger = eventContainsPitch(left.event, stringNumber, value)
-        && eventContainsPitch(right.event, stringNumber, value);
-      const leftNote = isMonophonicTransition
-        ? left.event.n.find(([candidateString]) => [1, 2, 3].includes(candidateString))
-        : null;
-      const rightNote = isMonophonicTransition
-        ? right.event.n.find(([candidateString]) => [1, 2, 3].includes(candidateString))
-        : null;
-      const repeatsNotationOnDescendingTuplet = Boolean(leftNote && rightNote
-        && String(leftNote[1]) === String(rightNote[1])
-        && leftTuplets.length && rightTuplets.length
-        && frequencyForNote(leftNote[0], leftNote[1]) > frequencyForNote(rightNote[0], rightNote[1]) + 1e-6);
-      const sharesMonophonicTuplet = isMonophonicTransition
+      const sharesMonophonicTuplet = leftPlayableCount === 1 && rightPlayableCount === 1
         && leftTuplets.some((id) => rightTuplets.includes(id));
-      const bridgesAdjacentTuplets = isMonophonicTransition && repeatsNotationOnDescendingTuplet;
       const special = state.measureSpecials?.[String(left.event.m)];
       const crossesHalfBoundary = right.event.m === left.event.m + 1
         && special?.type === "hanma" && Number(special.lengthRatio) === .5;
-      return (exactPitchRetrigger && (sharesMonophonicTuplet || crossesHalfBoundary))
-        || bridgesAdjacentTuplets;
+      return sharesMonophonicTuplet || crossesHalfBoundary;
     }
 
     function playbackNoteOccurrenceKey(playbackEvent, noteKey) {
@@ -3696,15 +3682,11 @@
           );
           const isTechniqueSource = isHajiki || isSukui;
           const preserveSampleTail = !isTechniqueSource && (isTupletEvent || tupletEntryBridge);
-          const shortTupletFadeIn = shortFadeIn && isTupletEvent
-            && previousEvent?.event.m === event.m;
-          const shortTupletFadeOut = shortFadeOut && isTupletEvent
-            && nextEventForFade?.event.m === event.m;
           const fadeInSeconds = !isTechniqueSource
-            ? (shortTupletFadeIn ? .004 : isTupletEvent ? .018 : shortFadeIn ? .004 : undefined)
+            ? (isTupletEvent ? .018 : shortFadeIn ? .004 : undefined)
             : undefined;
           const fadeOutSeconds = !isTechniqueSource
-            ? (shortTupletFadeOut ? .004 : preserveSampleTail ? .018 : shortFadeOut ? .004 : undefined)
+            ? (preserveSampleTail ? .018 : shortFadeOut ? .004 : undefined)
             : undefined;
           const tailReleaseSeconds = preserveSampleTail ? .004 : undefined;
           const glideStartDuration = duration;
