@@ -3586,28 +3586,6 @@
         const nextEventStartBeat = nextEvent ? nextEvent.startBeat : playbackEndBeat();
         const nextEventStartTime = state.audioStartTime + nextEventStartBeat * secondsPerBeat;
         const timelineTrace = runtimeDiagnostics.timeline[sourceEventIndex] ?? null;
-        const isTupletEvent = Boolean(timelineTrace?.tupletIds?.length);
-        const nextTimelineTrace = nextEvent
-          ? runtimeDiagnostics.timeline[nextEvent.sourceEventIndex] ?? null
-          : null;
-        const hasAudibleNotes = (candidate) => {
-          if (!candidate) return false;
-          const sourceNotes = Array.isArray(candidate.event.sourceNotes)
-            ? candidate.event.sourceNotes.filter((note) => note && note.rest !== true
-              && [1, 2, 3].includes(Number(note.s)) && note.v != null)
-            : [];
-          if (!sourceNotes.length) {
-            return candidate.event.n.some(([candidateString]) => [1, 2, 3].includes(candidateString));
-          }
-          return sourceNotes.some((note) => !suriPlan.suppressedEndpoints.has(
-            playbackNoteOccurrenceKey(candidate, shamisenNoteKey(note.m, note.s, note.p))
-          ));
-        };
-        const tupletEntryBridge = !isTupletEvent
-          && Boolean(nextTimelineTrace?.tupletIds?.length)
-          && Math.abs(startBeat + durationBeat - nextEvent.startBeat) < 1e-6
-          && hasAudibleNotes(playbackEvent)
-          && hasAudibleNotes(nextEvent);
         const volume = notes.length > 1 ? .62 : .88;
         recordScheduleTrace("event-scheduled", {
           sessionId,
@@ -3681,17 +3659,8 @@
             value
           );
           const isTechniqueSource = isHajiki || isSukui;
-          // Diagnostic: keep the current normal->triplet entry bridge, but reproduce
-          // the pre-tail reference player's envelope inside triplets. This is based
-          // only on musical connection state; no measure/row/event-position exceptions.
-          const preserveSampleTail = !isTechniqueSource && tupletEntryBridge;
-          const fadeInSeconds = !isTechniqueSource
-            ? (shortFadeIn ? .004 : isTupletEvent ? .018 : undefined)
-            : undefined;
-          const fadeOutSeconds = !isTechniqueSource
-            ? (shortFadeOut ? .004 : (isTupletEvent || preserveSampleTail) ? .018 : undefined)
-            : undefined;
-          const tailReleaseSeconds = preserveSampleTail ? .004 : undefined;
+          const fadeInSeconds = !isTechniqueSource && shortFadeIn ? .004 : undefined;
+          const fadeOutSeconds = !isTechniqueSource && shortFadeOut ? .004 : undefined;
           const glideStartDuration = duration;
           const glideEndDuration = glide ? glide.endDurationBeat * secondsPerBeat : 0;
           const requestedDuration = glide ? glideStartDuration + glideEndDuration : duration;
@@ -3741,8 +3710,6 @@
             volume: volume * gainCoefficient,
             fadeInSeconds,
             fadeOutSeconds,
-            preserveSampleTail,
-            tailReleaseSeconds,
             sourceKind,
             destination: state.shamisenGain,
             traceContext: {
@@ -3768,10 +3735,6 @@
               gainCoefficient,
               isHajiki,
               isSukui,
-              isTupletEvent,
-              tupletEntryBridge,
-              preserveSampleTailRequested: preserveSampleTail,
-              tupletTailReleaseRequested: tailReleaseSeconds ?? 0,
               shortRetriggerFadeIn: shortFadeIn,
               shortRetriggerFadeOut: shortFadeOut
             }
@@ -3794,8 +3757,6 @@
               gainCoefficient: glide ? 1 : gainCoefficient,
               fadeInSeconds: glide ? .003 : fadeInSeconds,
               fadeOutSeconds: glide ? Math.min(.04, requestedDuration * .16) : fadeOutSeconds,
-              preserveSampleTail: glide ? false : preserveSampleTail,
-              tailReleaseSeconds: glide ? 0 : tailReleaseSeconds ?? 0,
               isSuri: Boolean(glide),
               suriEndKey: glide?.endKey ?? null,
               endFrequency: glide?.endFrequency ?? null,
