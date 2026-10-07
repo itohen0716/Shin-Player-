@@ -1178,10 +1178,10 @@
     /** @typedef {{id:string,m:number,s:number,p:number,d:number,v:string,kind:"pitch"|"rest"|"interjection",color:string,x:number,dotted:boolean}} VocalNote */
     /** @typedef {{id:string,type:"triplet",start:{m:number,s:number,p:number},end:{m:number,s:number,p:number},targetBeats:number}} Tuplet */
     /** @typedef {{id:string,type:"measureRepeat",kind:"same1"|"same2",m:number,repeatCount:number}} MeasureRepeat */
-    /** @typedef {{index:number,sourceMeasure:number|null,displayMeasure:number,startBeat:number,endBeat:number,durationBeat:number,isRepeat:boolean,repeatKind:"same1"|"same2"|null,repeatMeasure:number|null,sourceOrder:number,isAbRepeat:boolean,abRepeatStart:number|null,abRepeatEnd:number|null,abRepeatPass:number}} PlaybackMeasureSegment */
+    /** @typedef {{index:number,sourceMeasure:number|null,displayMeasure:number,startBeat:number,endBeat:number,durationBeat:number,isRepeat:boolean,repeatKind:"same1"|"same2"|null,repeatMeasure:number|null,sourceOrder:number}} PlaybackMeasureSegment */
     /** @typedef {{playbackIndex:number,sourceEventIndex:number,segmentIndex:number,event:DemoEvent,startBeat:number,durationBeat:number}} PlaybackEvent */
     /** @typedef {{id:string,name:string,visible:boolean,items:Array<Record<string,unknown>>}} OptionalLayer */
-    /** @typedef {{format?:string,score:{title?:string,tuning?:string,meter?:string,notes:Array<Record<string,unknown>>,tuplets?:Array<Record<string,unknown>>,measureSpecials?:Record<string,Record<string,unknown>>,vocalNotes?:Array<Record<string,unknown>>,vocalSlurs?:Array<Record<string,unknown>>,vocalVisible?:boolean,scoreParts?:Array<Record<string,unknown>>,barlineKinds?:Record<string,string>,layers?:Array<Record<string,unknown>>,lyrics?:string[],rows?:number,measuresPerRow?:number,rowMeasureCounts?:number[],measureOffsets?:number[],annotationCoordVersion?:number}}} ScoreFile */
+    /** @typedef {{format?:string,score:{title?:string,tuning?:string,meter?:string,notes:Array<Record<string,unknown>>,tuplets?:Array<Record<string,unknown>>,measureSpecials?:Record<string,Record<string,unknown>>,vocalNotes?:Array<Record<string,unknown>>,vocalSlurs?:Array<Record<string,unknown>>,vocalVisible?:boolean,scoreParts?:Array<Record<string,unknown>>,layers?:Array<Record<string,unknown>>,lyrics?:string[],rows?:number,measuresPerRow?:number,rowMeasureCounts?:number[],measureOffsets?:number[],annotationCoordVersion?:number}}} ScoreFile */
 
     const TUNING_MODE_ALIASES = Object.freeze({
       "本調子": "hon",
@@ -1273,16 +1273,7 @@
       measureRawStartUnits: [],
       timeMapRanges: [],
       playbackEndUnit: 0,
-      playbackTimeline: {
-        segments: [],
-        events: [],
-        vocalNotes: [],
-        invalidRepeats: [],
-        abRepeatSections: [],
-        invalidRepeatBarlines: [],
-        measureOrder: [],
-        endBeat: 0
-      },
+      playbackTimeline: { segments: [], events: [], vocalNotes: [], invalidRepeats: [], endBeat: 0 },
       barlineKinds: {},
       rows: 0,
       measuresPerRow: 0,
@@ -1569,121 +1560,14 @@
       return repeat.kind === "same2" ? [repeat.m - 2, repeat.m - 1] : [repeat.m - 1];
     }
 
-    function playbackRowMeasureCounts(totalMeasures = measureCount()) {
-      const declared = Array.isArray(state.rowMeasureCounts)
-        ? state.rowMeasureCounts.map(Number).filter((count) => Number.isInteger(count) && count > 0)
-        : [];
-      if (declared.length) return declared;
-      const perRow = Number.isInteger(state.measuresPerRow) && state.measuresPerRow > 0
-        ? state.measuresPerRow
-        : Math.max(1, totalMeasures);
-      const rows = [];
-      let remaining = totalMeasures;
-      while (remaining > 0) {
-        const count = Math.min(perRow, remaining);
-        rows.push(count);
-        remaining -= count;
-      }
-      return rows;
-    }
-
-    function scoreRepeatBarlineBoundaries(totalMeasures = measureCount()) {
-      const rowCounts = playbackRowMeasureCounts(totalMeasures);
-      const rowStarts = [];
-      rowCounts.reduce((start, count, row) => {
-        rowStarts[row] = start;
-        return start + count;
-      }, 0);
-      const byBoundary = new Map();
-      const invalid = [];
-      Object.entries(state.barlineKinds || {}).forEach(([key, kind]) => {
-        if (kind !== "repeat-start" && kind !== "repeat-end") return;
-        const match = /^(\d+):(\d+)$/.exec(key);
-        const row = match ? Number(match[1]) : NaN;
-        const local = match ? Number(match[2]) : NaN;
-        const rowCount = rowCounts[row];
-        if (!Number.isInteger(row) || !Number.isInteger(local) || !Number.isInteger(rowCount)
-          || local < 0 || local > rowCount) {
-          invalid.push({ key, kind, reason: "invalid-row-boundary" });
-          return;
-        }
-        const boundary = rowStarts[row] + local;
-        if (!Number.isInteger(boundary) || boundary < 0 || boundary > totalMeasures) {
-          invalid.push({ key, kind, boundary, reason: "boundary-out-of-range" });
-          return;
-        }
-        if (!byBoundary.has(boundary)) byBoundary.set(boundary, new Set());
-        byBoundary.get(boundary).add(kind);
-      });
-      return { byBoundary, invalid };
-    }
-
-    function buildAbMeasureOrder(totalMeasures = measureCount()) {
-      const normalized = scoreRepeatBarlineBoundaries(totalMeasures);
-      const occurrences = [];
-      const sections = [];
-      const invalid = [...normalized.invalid];
-      const matchedStarts = new Set();
-      const matchedEnds = new Set();
-      let repeatStart = null;
-
-      for (let measureIndex = 0; measureIndex < totalMeasures; measureIndex += 1) {
-        if (normalized.byBoundary.get(measureIndex)?.has("repeat-start")) {
-          if (repeatStart !== null) {
-            invalid.push({
-              boundary: repeatStart,
-              replacementBoundary: measureIndex,
-              kind: "repeat-start",
-              reason: "nested-repeat-start-replaced"
-            });
-          }
-          repeatStart = measureIndex;
-        }
-        occurrences.push({
-          displayMeasure: measureIndex,
-          isAbRepeat: false,
-          abRepeatStart: null,
-          abRepeatEnd: null,
-          abRepeatPass: 0
-        });
-        const endBoundary = measureIndex + 1;
-        if (repeatStart === null || !normalized.byBoundary.get(endBoundary)?.has("repeat-end")) continue;
-        const section = { startBoundary: repeatStart, endBoundary, totalPasses: 2 };
-        sections.push(section);
-        matchedStarts.add(repeatStart);
-        matchedEnds.add(endBoundary);
-        for (let repeated = repeatStart; repeated <= measureIndex; repeated += 1) {
-          occurrences.push({
-            displayMeasure: repeated,
-            isAbRepeat: true,
-            abRepeatStart: repeatStart,
-            abRepeatEnd: endBoundary,
-            abRepeatPass: 1
-          });
-        }
-        repeatStart = null;
-      }
-
-      normalized.byBoundary.forEach((kinds, boundary) => {
-        if (kinds.has("repeat-start") && !matchedStarts.has(boundary)) {
-          invalid.push({ boundary, kind: "repeat-start", reason: "missing-repeat-end" });
-        }
-        if (kinds.has("repeat-end") && !matchedEnds.has(boundary)) {
-          invalid.push({ boundary, kind: "repeat-end", reason: "missing-repeat-start" });
-        }
-      });
-      return { occurrences, sections, invalid };
-    }
-
     function buildPlaybackTimeline() {
       const totalMeasures = measureCount();
       const repeatByMeasure = new Map(state.scoreParts.map((repeat) => [repeat.m, repeat]));
-      const abOrder = buildAbMeasureOrder(totalMeasures);
       const segments = [];
       const invalidRepeats = [];
       let cursorBeat = 0;
 
-      const appendSegment = (sourceMeasure, displayMeasure, repeat, sourceOrder, occurrence) => {
+      const appendSegment = (sourceMeasure, displayMeasure, repeat, sourceOrder) => {
         const durationBeat = sourceMeasure == null
           ? playbackUnitsForMeasure(displayMeasure) / 4
           : sourceMeasureDurationBeat(sourceMeasure);
@@ -1697,22 +1581,17 @@
           isRepeat: Boolean(repeat),
           repeatKind: repeat?.kind ?? null,
           repeatMeasure: repeat?.m ?? null,
-          sourceOrder,
-          isAbRepeat: Boolean(occurrence?.isAbRepeat),
-          abRepeatStart: occurrence?.abRepeatStart ?? null,
-          abRepeatEnd: occurrence?.abRepeatEnd ?? null,
-          abRepeatPass: Number(occurrence?.abRepeatPass) || 0
+          sourceOrder
         };
         segments.push(segment);
         cursorBeat = segment.endBeat;
       };
 
-      abOrder.occurrences.forEach((occurrence) => {
-        const measureIndex = occurrence.displayMeasure;
+      for (let measureIndex = 0; measureIndex < totalMeasures; measureIndex += 1) {
         const repeat = repeatByMeasure.get(measureIndex);
         if (!repeat) {
-          appendSegment(measureIndex, measureIndex, null, 0, occurrence);
-          return;
+          appendSegment(measureIndex, measureIndex, null, 0);
+          continue;
         }
 
         const sourceMeasures = repeatSourceMeasures(repeat);
@@ -1727,13 +1606,13 @@
             sourceMeasures,
             reason: hasMissingSource ? "missing-source-measure" : "repeat-source-is-repeat"
           });
-          appendSegment(null, measureIndex, repeat, 0, occurrence);
-          return;
+          appendSegment(null, measureIndex, repeat, 0);
+          continue;
         }
         sourceMeasures.forEach((sourceMeasure, sourceOrder) =>
-          appendSegment(sourceMeasure, measureIndex, repeat, sourceOrder, occurrence)
+          appendSegment(sourceMeasure, measureIndex, repeat, sourceOrder)
         );
-      });
+      }
 
       const events = [];
       segments.forEach((segment) => {
@@ -1775,16 +1654,7 @@
       vocalNotes.sort((left, right) => left.startBeat - right.startBeat
         || left.sourceNoteIndex - right.sourceNoteIndex || left.segmentIndex - right.segmentIndex);
 
-      return {
-        segments,
-        events,
-        vocalNotes,
-        invalidRepeats,
-        abRepeatSections: abOrder.sections,
-        invalidRepeatBarlines: abOrder.invalid,
-        measureOrder: abOrder.occurrences.map((occurrence) => occurrence.displayMeasure),
-        endBeat: cursorBeat
-      };
+      return { segments, events, vocalNotes, invalidRepeats, endBeat: cursorBeat };
     }
 
     function refreshTimelineDiagnostics() {
@@ -4460,7 +4330,6 @@
           sukuiCount: state.sukuiKeys.size,
           tupletCount: state.tuplets.length,
           measureRepeatCount: state.scoreParts.length,
-          abRepeatSectionCount: state.playbackTimeline.abRepeatSections.length,
           playbackEndBeat: playbackEndBeat()
         },
         timeMapRanges: state.timeMapRanges,
@@ -4468,9 +4337,6 @@
         timeline: runtimeDiagnostics.timeline,
         playbackSegments: state.playbackTimeline.segments,
         invalidMeasureRepeats: state.playbackTimeline.invalidRepeats,
-        abRepeatSections: state.playbackTimeline.abRepeatSections,
-        invalidRepeatBarlines: state.playbackTimeline.invalidRepeatBarlines,
-        playbackMeasureOrder: state.playbackTimeline.measureOrder,
         playbackEvents: state.playbackTimeline.events.map((entry) => ({
           playbackIndex: entry.playbackIndex,
           sourceEventIndex: entry.sourceEventIndex,
@@ -4488,8 +4354,7 @@
 
     window.ShianPlayerDiagnostics = Object.freeze({
       getTrace: getRuntimeTrace,
-      clearTrace: clearRuntimeTrace,
-      buildAbMeasureOrder
+      clearTrace: clearRuntimeTrace
     });
 
     els.fileButton.addEventListener("click", () => els.fileInput.click());
