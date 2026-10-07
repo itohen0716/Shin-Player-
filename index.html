@@ -488,32 +488,6 @@
 
     .tuplet-label-background { fill: #fffdfa; stroke: none; }
 
-    .suri-layer {
-      position: absolute;
-      z-index: 9;
-      top: -28px;
-      left: 0;
-      width: 100%;
-      height: 133px;
-      overflow: visible;
-      pointer-events: none;
-    }
-
-    .suri-layer path {
-      fill: none;
-      stroke-width: 2px;
-      stroke-linecap: round;
-      vector-effect: non-scaling-stroke;
-    }
-
-    .suri-layer text {
-      stroke: none;
-      font-family: "Yu Mincho", "Times New Roman", serif;
-      font-weight: 700;
-      text-anchor: middle;
-      dominant-baseline: middle;
-    }
-
     .lyrics-label {
       z-index: 2;
       grid-column: 1;
@@ -1170,16 +1144,12 @@
     "use strict";
 
     /** @typedef {{m:number,p:number,d:number,n:Array<[number,string]>,technique?:string,x?:number,sourceNotes?:Array<{m:number,s:number,p:number,d:number,v:string|null,rest:boolean}>}} DemoEvent */
-    /** @typedef {{m:number,s:number,p:number,text:string,id?:string,endAnchor?:{m:number,s:number,p:number},side?:"above"|"below",offsetXPx?:number,offsetYPx?:number,color?:string}} ScoreMark */
-    /** @typedef {{id:string,anchor:{m:number,s:number,p:number},endAnchor:{m:number,s:number,p:number},side:"above"|"below",offsetXPx:number,offsetYPx:number,color:string}} SuriMark */
-    /** @typedef {{type:"suri",startKey:string,endKey:string,anchor:{m:number,s:number,p:number},endAnchor:{m:number,s:number,p:number}}} SuriTechnique */
+    /** @typedef {{m:number,s:number,p:number,text:string}} ScoreMark */
     /** @typedef {{type:"hajiki",key:string,anchor:{m:number,s:number,p:number}}} HajikiTechnique */
     /** @typedef {{type:"sukui",key:string,anchor:{m:number,s:number,p:number}}} SukuiTechnique */
     /** @typedef {{id:string,m:number,s:number,p:number,d:number,v:string,kind:"pitch"|"rest"|"interjection",color:string,x:number,dotted:boolean}} VocalNote */
     /** @typedef {{id:string,type:"triplet",start:{m:number,s:number,p:number},end:{m:number,s:number,p:number},targetBeats:number}} Tuplet */
     /** @typedef {{id:string,type:"measureRepeat",kind:"same1"|"same2",m:number,repeatCount:number}} MeasureRepeat */
-    /** @typedef {{index:number,sourceMeasure:number|null,displayMeasure:number,startBeat:number,endBeat:number,durationBeat:number,isRepeat:boolean,repeatKind:"same1"|"same2"|null,repeatMeasure:number|null,sourceOrder:number}} PlaybackMeasureSegment */
-    /** @typedef {{playbackIndex:number,sourceEventIndex:number,segmentIndex:number,event:DemoEvent,startBeat:number,durationBeat:number}} PlaybackEvent */
     /** @typedef {{id:string,name:string,visible:boolean,items:Array<Record<string,unknown>>}} OptionalLayer */
     /** @typedef {{format?:string,score:{title?:string,tuning?:string,meter?:string,notes:Array<Record<string,unknown>>,tuplets?:Array<Record<string,unknown>>,measureSpecials?:Record<string,Record<string,unknown>>,vocalNotes?:Array<Record<string,unknown>>,vocalSlurs?:Array<Record<string,unknown>>,vocalVisible?:boolean,scoreParts?:Array<Record<string,unknown>>,layers?:Array<Record<string,unknown>>,lyrics?:string[],rows?:number,measuresPerRow?:number,rowMeasureCounts?:number[],measureOffsets?:number[],annotationCoordVersion?:number}}} ScoreFile */
 
@@ -1260,8 +1230,6 @@
       meter: "",
       events: /** @type {DemoEvent[]} */ ([]),
       marks: /** @type {ScoreMark[]} */ ([]),
-      suriMarks: /** @type {SuriMark[]} */ ([]),
-      suriTechniques: /** @type {SuriTechnique[]} */ ([]),
       hajikiTechniques: /** @type {HajikiTechnique[]} */ ([]),
       hajikiKeys: new Set(),
       sukuiTechniques: /** @type {SukuiTechnique[]} */ ([]),
@@ -1273,7 +1241,6 @@
       measureRawStartUnits: [],
       timeMapRanges: [],
       playbackEndUnit: 0,
-      playbackTimeline: { segments: [], events: [], vocalNotes: [], invalidRepeats: [], endBeat: 0 },
       barlineKinds: {},
       rows: 0,
       measuresPerRow: 0,
@@ -1551,112 +1518,6 @@
       return state.eventTimingByKey.get(eventKey(event))?.duration ?? nominalEventDurationBeat(event);
     }
 
-    function sourceMeasureDurationBeat(measureIndex) {
-      return Math.max(0, measureEndBeat(measureIndex) - measureStartBeat(measureIndex));
-    }
-
-    function repeatSourceMeasures(repeat) {
-      if (!repeat) return [];
-      return repeat.kind === "same2" ? [repeat.m - 2, repeat.m - 1] : [repeat.m - 1];
-    }
-
-    function buildPlaybackTimeline() {
-      const totalMeasures = measureCount();
-      const repeatByMeasure = new Map(state.scoreParts.map((repeat) => [repeat.m, repeat]));
-      const segments = [];
-      const invalidRepeats = [];
-      let cursorBeat = 0;
-
-      const appendSegment = (sourceMeasure, displayMeasure, repeat, sourceOrder) => {
-        const durationBeat = sourceMeasure == null
-          ? playbackUnitsForMeasure(displayMeasure) / 4
-          : sourceMeasureDurationBeat(sourceMeasure);
-        const segment = {
-          index: segments.length,
-          sourceMeasure,
-          displayMeasure,
-          startBeat: cursorBeat,
-          endBeat: cursorBeat + durationBeat,
-          durationBeat,
-          isRepeat: Boolean(repeat),
-          repeatKind: repeat?.kind ?? null,
-          repeatMeasure: repeat?.m ?? null,
-          sourceOrder
-        };
-        segments.push(segment);
-        cursorBeat = segment.endBeat;
-      };
-
-      for (let measureIndex = 0; measureIndex < totalMeasures; measureIndex += 1) {
-        const repeat = repeatByMeasure.get(measureIndex);
-        if (!repeat) {
-          appendSegment(measureIndex, measureIndex, null, 0);
-          continue;
-        }
-
-        const sourceMeasures = repeatSourceMeasures(repeat);
-        const hasMissingSource = sourceMeasures.some((sourceMeasure) =>
-          sourceMeasure < 0 || sourceMeasure >= totalMeasures
-        );
-        const referencesRepeatMarker = sourceMeasures.some((sourceMeasure) => repeatByMeasure.has(sourceMeasure));
-        if (hasMissingSource || referencesRepeatMarker) {
-          invalidRepeats.push({
-            measure: measureIndex,
-            kind: repeat.kind,
-            sourceMeasures,
-            reason: hasMissingSource ? "missing-source-measure" : "repeat-source-is-repeat"
-          });
-          appendSegment(null, measureIndex, repeat, 0);
-          continue;
-        }
-        sourceMeasures.forEach((sourceMeasure, sourceOrder) =>
-          appendSegment(sourceMeasure, measureIndex, repeat, sourceOrder)
-        );
-      }
-
-      const events = [];
-      segments.forEach((segment) => {
-        if (segment.sourceMeasure == null) return;
-        const sourceStartBeat = measureStartBeat(segment.sourceMeasure);
-        state.events.forEach((event, sourceEventIndex) => {
-          if (event.m !== segment.sourceMeasure) return;
-          events.push({
-            playbackIndex: events.length,
-            sourceEventIndex,
-            segmentIndex: segment.index,
-            event,
-            startBeat: segment.startBeat + Math.max(0, eventStartBeat(event) - sourceStartBeat),
-            durationBeat: eventDurationBeat(event)
-          });
-        });
-      });
-      events.sort((left, right) => left.startBeat - right.startBeat
-        || left.sourceEventIndex - right.sourceEventIndex || left.segmentIndex - right.segmentIndex);
-      events.forEach((entry, playbackIndex) => { entry.playbackIndex = playbackIndex; });
-
-      const vocalNotes = [];
-      segments.forEach((segment) => {
-        if (segment.sourceMeasure == null) return;
-        const sourceStartBeat = measureStartBeat(segment.sourceMeasure);
-        state.vocalNotes.forEach((note, sourceNoteIndex) => {
-          if (note.m !== segment.sourceMeasure) return;
-          vocalNotes.push({
-            playbackId: `${segment.index}:${note.id}`,
-            sourceId: note.id,
-            sourceNoteIndex,
-            segmentIndex: segment.index,
-            note,
-            startBeat: segment.startBeat + Math.max(0, vocalNoteStartBeat(note) - sourceStartBeat),
-            durationBeat: vocalNoteDurationBeat(note)
-          });
-        });
-      });
-      vocalNotes.sort((left, right) => left.startBeat - right.startBeat
-        || left.sourceNoteIndex - right.sourceNoteIndex || left.segmentIndex - right.segmentIndex);
-
-      return { segments, events, vocalNotes, invalidRepeats, endBeat: cursorBeat };
-    }
-
     function refreshTimelineDiagnostics() {
       const secondsPerBeat = 60 / state.bpm;
       runtimeDiagnostics.measures = Array.from({ length: measureCount() }, (_, measureIndex) => {
@@ -1761,7 +1622,6 @@
       });
 
       state.eventTimingByKey = timingByKey;
-      state.playbackTimeline = buildPlaybackTimeline();
       refreshTimelineDiagnostics();
     }
 
@@ -1776,15 +1636,15 @@
     }
 
     function playbackEndBeat() {
-      const shamisenEnd = state.playbackTimeline.events.reduce(
-        (maximum, entry) => Math.max(maximum, entry.startBeat + entry.durationBeat),
+      const shamisenEnd = state.events.reduce(
+        (maximum, event) => Math.max(maximum, eventStartBeat(event) + eventDurationBeat(event)),
         0
       );
-      const vocalEnd = state.playbackTimeline.vocalNotes.reduce(
-        (maximum, entry) => Math.max(maximum, entry.startBeat + entry.durationBeat),
+      const vocalEnd = state.vocalNotes.reduce(
+        (maximum, note) => Math.max(maximum, vocalNoteStartBeat(note) + vocalNoteDurationBeat(note)),
         0
       );
-      const scoreEnd = state.playbackTimeline.endBeat;
+      const scoreEnd = timelineUnit(measureCount(), state.playbackEndUnit) / 4;
       return Math.max(shamisenEnd, vocalEnd, scoreEnd);
     }
 
@@ -2176,102 +2036,9 @@
       });
     }
 
-    function suriAnchorPoint(anchor, rowRect, side) {
-      const note = els.scorePaper.querySelector(`[data-note-anchor="${anchor.m}:${anchor.s}:${anchor.p}"]`);
-      if (!(note instanceof HTMLElement)) return null;
-      const value = note.querySelector("span:first-child") || note;
-      const glyphRect = value.getBoundingClientRect();
-      const fontSize = finiteNumber(parseFloat(getComputedStyle(value).fontSize), 15);
-      const isOpen = String(value.textContent || "") === "0";
-      const ratio = Math.min(1.4, Math.max(.72, fontSize / (isOpen ? 1.07 : 1) / 15));
-      const symbolSize = 14 * ratio;
-      const clearance = Math.max(1, glyphRect.height * .08);
-      const gap = symbolSize / 2 + clearance;
-      return {
-        x: glyphRect.left + glyphRect.width / 2 - rowRect.left,
-        y: (side === "below" ? glyphRect.bottom + gap : glyphRect.top - gap) - rowRect.top + 28,
-        symbolSize
-      };
-    }
-
-    function suriGeometry(startPoint, endPoint, suri) {
-      let start = { ...startPoint };
-      let end = { ...endPoint };
-      const symbolSize = start.symbolSize;
-      if (start.x > end.x) [start, end] = [end, start];
-      const below = suri.side === "below";
-      const edgeShift = below ? -4 : 4;
-      const arch = below ? 8 : -8;
-      const x1 = start.x + suri.offsetXPx;
-      const x2 = end.x + suri.offsetXPx;
-      const y1 = start.y + suri.offsetYPx + edgeShift;
-      const y2 = end.y + suri.offsetYPx + edgeShift;
-      const centerX = (x1 + x2) / 2;
-      const centerY = (y1 + y2) / 2;
-      return {
-        x1,
-        x2,
-        y1,
-        y2,
-        centerX,
-        controlY: centerY + arch,
-        textY: centerY + (below ? 13 : -13),
-        symbolSize
-      };
-    }
-
-    function renderSuriMarks() {
-      els.scorePaper.querySelectorAll(".suri-layer").forEach((element) => element.remove());
-      if (!state.suriMarks.length) return;
-
-      state.suriMarks.forEach((suri) => {
-        const startElement = els.scorePaper.querySelector(
-          `[data-note-anchor="${suri.anchor.m}:${suri.anchor.s}:${suri.anchor.p}"]`
-        );
-        const endElement = els.scorePaper.querySelector(
-          `[data-note-anchor="${suri.endAnchor.m}:${suri.endAnchor.s}:${suri.endAnchor.p}"]`
-        );
-        const row = startElement?.closest(".score-row");
-        if (!(startElement instanceof HTMLElement) || !(endElement instanceof HTMLElement)
-          || !(row instanceof HTMLElement) || endElement.closest(".score-row") !== row) return;
-
-        const rowRect = row.getBoundingClientRect();
-        if (!rowRect.width) return;
-        let start = suriAnchorPoint(suri.anchor, rowRect, suri.side);
-        let end = suriAnchorPoint(suri.endAnchor, rowRect, suri.side);
-        if (!start || !end) return;
-        const geometry = suriGeometry(start, end, suri);
-        const overlayHeight = Math.ceil(rowRect.height + 28);
-        let svg = row.querySelector(".suri-layer");
-        if (!(svg instanceof SVGElement)) {
-          svg = svgElement("svg", { class: "suri-layer", preserveAspectRatio: "none", "aria-hidden": "true" });
-          row.append(svg);
-        }
-        svg.setAttribute("viewBox", `0 0 ${rowRect.width} ${overlayHeight}`);
-        svg.style.height = `${overlayHeight}px`;
-        const group = svgElement("g", { "data-suri-id": suri.id });
-        const label = svgElement("text", {
-          x: geometry.centerX.toFixed(2),
-          y: geometry.textY.toFixed(2),
-          fill: suri.color,
-          "font-size": geometry.symbolSize.toFixed(2)
-        });
-        label.textContent = "スリ";
-        group.append(
-          label,
-          svgElement("path", {
-            d: `M ${geometry.x1.toFixed(2)} ${geometry.y1.toFixed(2)} Q ${geometry.centerX.toFixed(2)} ${geometry.controlY.toFixed(2)} ${geometry.x2.toFixed(2)} ${geometry.y2.toFixed(2)}`,
-            stroke: suri.color
-          })
-        );
-        svg.append(group);
-      });
-    }
-
     function marksForEvent(event) {
       const texts = new Set();
       return state.marks.filter((mark) => {
-        if (mark.text === "スリ" && mark.endAnchor) return false;
         if (mark.m !== event.m || mark.p !== event.p || texts.has(mark.text)) return false;
         texts.add(mark.text);
         return true;
@@ -3076,7 +2843,6 @@
       applyScoreNoteDensitySizes();
       alignLyricLines();
       renderTuplets();
-      renderSuriMarks();
       renderVocalSlurs();
       renderWritingLayers();
       const visibleBeat = state.isPlaying ? currentBeat() : state.pausedBeat;
@@ -3084,21 +2850,12 @@
     }
 
     function measureIndexForBeat(beat) {
-      const segments = state.playbackTimeline.segments;
-      for (let index = 0; index < segments.length; index += 1) {
-        const segment = segments[index];
-        if (beat < segment.endBeat - .001 || index === segments.length - 1) {
-          return segment.sourceMeasure ?? segment.displayMeasure;
-        }
+      const total = measureCount();
+      for (let index = 0; index < total; index += 1) {
+        const end = measureEndBeat(index);
+        if (beat < end - .001 || index === total - 1) return index;
       }
       return 0;
-    }
-
-    function playbackSegmentForBeat(beat) {
-      const segments = state.playbackTimeline.segments;
-      return segments.find((segment, index) =>
-        beat < segment.endBeat - .001 || index === segments.length - 1
-      ) ?? null;
     }
 
     function scrollToCurrentSystem(measure, behavior = "smooth") {
@@ -3125,25 +2882,22 @@
         return;
       }
 
-      const playbackEvent = state.playbackTimeline.events[index];
-      const event = playbackEvent?.event;
-      if (playbackEvent && beat >= playbackEvent.startBeat - .001
-        && beat < playbackEvent.startBeat + playbackEvent.durationBeat - .001) {
-        els.scorePaper.querySelectorAll(`[data-event-index="${playbackEvent.sourceEventIndex}"]`)
-          .forEach((element) => element.classList.add("is-playing"));
+      const event = state.events[index];
+      if (event && beat >= eventStartBeat(event) - .001 && beat < eventStartBeat(event) + eventDurationBeat(event) - .001) {
+        els.scorePaper.querySelectorAll(`[data-event-index="${index}"]`).forEach((element) => element.classList.add("is-playing"));
       }
-      state.playbackTimeline.vocalNotes.forEach((entry) => {
-        if (beat < entry.startBeat - .001 || beat >= entry.startBeat + entry.durationBeat - .001) return;
+      state.vocalNotes.forEach((note) => {
+        const start = vocalNoteStartBeat(note);
+        if (beat < start - .001 || beat >= start + vocalNoteDurationBeat(note) - .001) return;
         els.scorePaper.querySelectorAll(".vocal-note").forEach((element) => {
-          if (element instanceof HTMLElement && element.dataset.vocalId === entry.sourceId) element.classList.add("is-playing");
+          if (element instanceof HTMLElement && element.dataset.vocalId === note.id) element.classList.add("is-playing");
         });
       });
 
       const measureIndex = measureIndexForBeat(Math.max(0, beat));
       const measure = els.scorePaper.querySelector(`.measure[data-measure="${measureIndex}"]`);
       measure?.classList.add("is-current");
-      const activeSegment = playbackSegmentForBeat(Math.max(0, beat));
-      const beatWithinMeasure = Math.max(0, beat - (activeSegment?.startBeat ?? 0)) + 1;
+      const beatWithinMeasure = Math.max(0, beat - measureStartBeat(measureIndex)) + 1;
       const technique = event?.technique && event.m === measureIndex ? `・${event.technique}` : "";
       els.positionText.textContent = `${measureIndex + 1}小節目・${Number.isInteger(beatWithinMeasure) ? beatWithinMeasure : beatWithinMeasure.toFixed(1)}拍目${technique}`;
 
@@ -3204,8 +2958,8 @@
     function scheduleVocalSingle(note, secondsPerBeat) {
       if (!state.audioContext || !state.vocalGain || note.kind !== "pitch") return;
       const frequency = frequencyForNote(note.s, note.v);
-      const when = state.audioStartTime + note.absoluteBeat * secondsPerBeat;
-      const durationSeconds = note.durationBeat * secondsPerBeat;
+      const when = state.audioStartTime + vocalNoteStartBeat(note) * secondsPerBeat;
+      const durationSeconds = vocalNoteDurationBeat(note) * secondsPerBeat;
       const end = when + Math.max(.1, durationSeconds * .94);
       const attack = Math.min(.045, durationSeconds * .2);
       const release = Math.min(.09, durationSeconds * .28);
@@ -3231,43 +2985,31 @@
     }
 
     function buildVocalPlan() {
-      const allOrdered = state.playbackTimeline.vocalNotes
-        .map((entry) => ({
-          ...entry.note,
-          id: entry.playbackId,
-          sourceId: entry.sourceId,
-          segmentIndex: entry.segmentIndex,
-          absoluteBeat: entry.startBeat,
-          durationBeat: entry.durationBeat
-        }))
+      const allOrdered = state.vocalNotes
+        .map((note) => ({ ...note, absoluteBeat: vocalNoteStartBeat(note) }))
         .sort((a, b) => a.absoluteBeat - b.absoluteBeat);
+      const byId = new Map(allOrdered.map((note) => [note.id, note]));
       const consumed = new Set();
       const phrases = [];
       state.vocalSlurs.forEach((slur) => {
-        const starts = allOrdered.filter((note) => note.sourceId === slur.startId);
-        const ends = allOrdered.filter((note) => note.sourceId === slur.endId);
-        const usedEnds = new Set();
-        starts.forEach((start) => {
-          const end = ends.find((candidate) => !usedEnds.has(candidate.id)
-            && candidate.absoluteBeat >= start.absoluteBeat - .001);
-          if (!end) return;
-          usedEnds.add(end.id);
-          const low = Math.min(start.absoluteBeat, end.absoluteBeat);
-          const high = Math.max(start.absoluteBeat, end.absoluteBeat);
-          let part = [];
-          const flush = () => {
-            if (part.length > 1) {
-              phrases.push(part);
-              part.forEach((note) => consumed.add(note.id));
-            }
-            part = [];
-          };
-          allOrdered.filter((note) => note.absoluteBeat >= low && note.absoluteBeat <= high).forEach((note) => {
-            if (note.kind !== "pitch") flush();
-            else part.push(note);
-          });
-          flush();
+        const start = byId.get(slur.startId);
+        const end = byId.get(slur.endId);
+        if (!start || !end) return;
+        const low = Math.min(start.absoluteBeat, end.absoluteBeat);
+        const high = Math.max(start.absoluteBeat, end.absoluteBeat);
+        let part = [];
+        const flush = () => {
+          if (part.length > 1) {
+            phrases.push(part);
+            part.forEach((note) => consumed.add(note.id));
+          }
+          part = [];
+        };
+        allOrdered.filter((note) => note.absoluteBeat >= low && note.absoluteBeat <= high).forEach((note) => {
+          if (note.kind !== "pitch") flush();
+          else part.push(note);
         });
+        flush();
       });
       return {
         phrases,
@@ -3280,7 +3022,7 @@
       const frequencies = notes.map((note) => frequencyForNote(note.s, note.v));
       const start = state.audioStartTime + notes[0].absoluteBeat * secondsPerBeat;
       const last = notes[notes.length - 1];
-      const end = state.audioStartTime + (last.absoluteBeat + last.durationBeat) * secondsPerBeat;
+      const end = state.audioStartTime + (last.absoluteBeat + vocalNoteDurationBeat(last)) * secondsPerBeat;
       const attack = Math.min(.045, (end - start) * .12);
       const release = Math.min(.09, (end - start) * .18);
       const gain = state.audioContext.createGain();
@@ -3333,93 +3075,6 @@
       return sharesMonophonicTuplet || crossesHalfBoundary;
     }
 
-    function needsShortPlaybackRetriggerFade(left, right, stringNumber, value) {
-      if (!left || !right || !eventContainsPitch(left.event, stringNumber, value)
-        || !eventContainsPitch(right.event, stringNumber, value)) return false;
-      const leftEndBeat = left.startBeat + left.durationBeat;
-      if (Math.abs(leftEndBeat - right.startBeat) > 1e-6) return false;
-      const leftTuplets = runtimeDiagnostics.timeline[left.sourceEventIndex]?.tupletIds ?? [];
-      const rightTuplets = runtimeDiagnostics.timeline[right.sourceEventIndex]?.tupletIds ?? [];
-      const leftPlayableCount = left.event.n.filter(([candidateString]) => [1, 2, 3].includes(candidateString)).length;
-      const rightPlayableCount = right.event.n.filter(([candidateString]) => [1, 2, 3].includes(candidateString)).length;
-      const sharesMonophonicTuplet = leftPlayableCount === 1 && rightPlayableCount === 1
-        && leftTuplets.some((id) => rightTuplets.includes(id));
-      const special = state.measureSpecials?.[String(left.event.m)];
-      const crossesHalfBoundary = right.event.m === left.event.m + 1
-        && special?.type === "hanma" && Number(special.lengthRatio) === .5;
-      return sharesMonophonicTuplet || crossesHalfBoundary;
-    }
-
-    function playbackNoteOccurrenceKey(playbackEvent, noteKey) {
-      return `${playbackEvent.playbackIndex}|${noteKey}`;
-    }
-
-    function buildSuriPlaybackPlan(playbackEvents = state.playbackTimeline.events) {
-      const noteTimingsByKey = new Map();
-      playbackEvents.forEach((playbackEvent) => {
-        const { event } = playbackEvent;
-        (Array.isArray(event.sourceNotes) ? event.sourceNotes : []).forEach((note) => {
-          if (!note || note.rest === true || ![1, 2, 3].includes(Number(note.s)) || note.v == null) return;
-          const key = shamisenNoteKey(note.m, note.s, note.p);
-          const timings = noteTimingsByKey.get(key) || [];
-          timings.push({
-            key,
-            occurrenceKey: playbackNoteOccurrenceKey(playbackEvent, key),
-            playbackEvent,
-            event,
-            eventIndex: playbackEvent.sourceEventIndex,
-            note,
-            startBeat: playbackEvent.startBeat,
-            durationBeat: playbackEvent.durationBeat,
-            frequency: frequencyForNote(Number(note.s), String(note.v))
-          });
-          noteTimingsByKey.set(key, timings);
-        });
-      });
-
-      const glides = new Map();
-      const suppressedEndpoints = new Set();
-      const ignored = [];
-      state.suriTechniques.forEach((suri) => {
-        const starts = noteTimingsByKey.get(suri.startKey) || [];
-        const ends = noteTimingsByKey.get(suri.endKey) || [];
-        const usedEnds = new Set();
-        if (!starts.length || !ends.length) {
-          ignored.push({ startKey: suri.startKey, endKey: suri.endKey, reason: "missing-or-nonforward-anchor" });
-          return;
-        }
-        starts.forEach((start) => {
-          const end = ends.find((candidate) => !usedEnds.has(candidate.occurrenceKey)
-            && candidate.startBeat > start.startBeat + 1e-9);
-          if (!end) {
-            ignored.push({
-              startKey: suri.startKey,
-              endKey: suri.endKey,
-              occurrenceKey: start.occurrenceKey,
-              reason: "missing-or-nonforward-anchor"
-            });
-            return;
-          }
-          usedEnds.add(end.occurrenceKey);
-          suppressedEndpoints.add(end.occurrenceKey);
-          glides.set(start.occurrenceKey, {
-            startKey: suri.startKey,
-            endKey: suri.endKey,
-            startOccurrenceKey: start.occurrenceKey,
-            endOccurrenceKey: end.occurrenceKey,
-            startFrequency: start.frequency,
-            endFrequency: end.frequency,
-            startDurationBeat: start.durationBeat,
-            endDurationBeat: end.durationBeat,
-            startEventIndex: start.eventIndex,
-            endEventIndex: end.eventIndex,
-            endStartBeat: end.startBeat
-          });
-        });
-      });
-      return { noteTimingsByKey, glides, suppressedEndpoints, ignored };
-    }
-
     function schedulePlaybackAudio(fromBeat, leadSeconds = .08) {
       if (!state.soundEnabled || !state.audioContext || !state.shamisenGain) return;
       if (fromBeat <= .001) clearRuntimeTrace();
@@ -3436,32 +3091,21 @@
         secondsPerUnit: secondsPerBeat / 4,
         audioStartTime: state.audioStartTime
       });
-      const playbackEvents = state.playbackTimeline.events;
-      const suriPlan = buildSuriPlaybackPlan(playbackEvents);
-      recordScheduleTrace("suri-plan", {
-        sessionId,
-        glideCount: suriPlan.glides.size,
-        suppressedEndpointCount: suriPlan.suppressedEndpoints.size,
-        ignored: suriPlan.ignored.map((entry) => ({ ...entry }))
-      });
-      playbackEvents.forEach((playbackEvent, eventIndex) => {
-        const { event, sourceEventIndex } = playbackEvent;
-        if (playbackEvent.startBeat < fromBeat - .001) return;
+      state.events.forEach((event, eventIndex) => {
+        if (eventStartBeat(event) < fromBeat - .001) return;
         const notes = event.n.filter(([stringNumber]) => [1, 2, 3].includes(stringNumber));
-        const startBeat = playbackEvent.startBeat;
-        const durationBeat = playbackEvent.durationBeat;
+        const startBeat = eventStartBeat(event);
+        const durationBeat = eventDurationBeat(event);
         const when = state.audioStartTime + startBeat * secondsPerBeat;
         const duration = durationBeat * secondsPerBeat;
-        const nextEvent = playbackEvents[eventIndex + 1] ?? null;
-        const nextEventStartBeat = nextEvent ? nextEvent.startBeat : playbackEndBeat();
+        const nextEvent = state.events[eventIndex + 1] ?? null;
+        const nextEventStartBeat = nextEvent ? eventStartBeat(nextEvent) : playbackEndBeat();
         const nextEventStartTime = state.audioStartTime + nextEventStartBeat * secondsPerBeat;
-        const timelineTrace = runtimeDiagnostics.timeline[sourceEventIndex] ?? null;
+        const timelineTrace = runtimeDiagnostics.timeline[eventIndex] ?? null;
         const volume = notes.length > 1 ? .62 : .88;
         recordScheduleTrace("event-scheduled", {
           sessionId,
           eventIndex,
-          sourceEventIndex,
-          segmentIndex: playbackEvent.segmentIndex,
           m: event.m,
           p: event.p,
           d: event.d,
@@ -3490,23 +3134,6 @@
             sourceNote?.s ?? stringNumber,
             sourceNote?.p ?? event.p
           );
-          const techniqueOccurrenceKey = playbackNoteOccurrenceKey(playbackEvent, techniqueKey);
-          if (suriPlan.suppressedEndpoints.has(techniqueOccurrenceKey)) {
-            recordScheduleTrace("suri-endpoint-suppressed", {
-              sessionId,
-              eventIndex,
-              sourceEventIndex,
-              segmentIndex: playbackEvent.segmentIndex,
-              m: sourceNote?.m ?? event.m,
-              s: sourceNote?.s ?? stringNumber,
-              p: sourceNote?.p ?? event.p,
-              v: value,
-              techniqueKey,
-              techniqueOccurrenceKey
-            });
-            return;
-          }
-          const glide = suriPlan.glides.get(techniqueOccurrenceKey);
           const isHajiki = state.hajikiKeys.has(techniqueKey);
           const isSukui = !isHajiki && state.sukuiKeys.has(techniqueKey);
           const sourceKind = isHajiki ? "hajiki" : isSukui ? "sukui" : "normal";
@@ -3514,66 +3141,28 @@
             ? HAJIKI_GAIN_COEFFICIENT
             : isSukui ? SUKUI_GAIN_COEFFICIENT : 1;
           const targetFrequency = frequencyForNote(stringNumber, value);
-          const previousEvent = playbackEvents[eventIndex - 1] ?? null;
-          const nextEventForFade = playbackEvents[eventIndex + 1] ?? null;
-          const shortFadeIn = needsShortPlaybackRetriggerFade(
+          const previousEvent = state.events[eventIndex - 1] ?? null;
+          const nextEventForFade = state.events[eventIndex + 1] ?? null;
+          const shortFadeIn = needsShortRetriggerFade(
             previousEvent,
-            playbackEvent,
+            eventIndex - 1,
+            event,
+            eventIndex,
             stringNumber,
             value
           );
-          const shortFadeOut = needsShortPlaybackRetriggerFade(
-            playbackEvent,
+          const shortFadeOut = needsShortRetriggerFade(
+            event,
+            eventIndex,
             nextEventForFade,
+            eventIndex + 1,
             stringNumber,
             value
           );
           const isTechniqueSource = isHajiki || isSukui;
           const fadeInSeconds = !isTechniqueSource && shortFadeIn ? .004 : undefined;
           const fadeOutSeconds = !isTechniqueSource && shortFadeOut ? .004 : undefined;
-          const glideStartDuration = duration;
-          const glideEndDuration = glide ? glide.endDurationBeat * secondsPerBeat : 0;
-          const requestedDuration = glide ? glideStartDuration + glideEndDuration : duration;
-          const playPromise = glide
-            ? window.ShianAudioEngine.playFrequencyGlide(targetFrequency, glide.endFrequency, {
-              exclusive: false,
-              when,
-              duration: requestedDuration,
-              glideAttackHold: glideStartDuration,
-              tightStop: true,
-              volume,
-              sourceKind: "normal",
-              destination: state.shamisenGain,
-              traceContext: {
-                sessionId,
-                eventIndex,
-                sourceEventIndex,
-                segmentIndex: playbackEvent.segmentIndex,
-                m: event.m,
-                s: stringNumber,
-                p: event.p,
-                d: event.d,
-                v: value,
-                tupletIds: timelineTrace?.tupletIds ?? [],
-                rawUnit: timelineTrace?.rawUnit ?? rawPositionUnit(event),
-                mappedUnit: timelineTrace?.mappedUnit ?? startBeat * 4,
-                eventStartBeat: startBeat,
-                eventDurationBeat: durationBeat,
-                nextEventStartTime,
-                techniqueKey,
-                techniqueOccurrenceKey,
-                sourceKind: "normal",
-                isSuri: true,
-                suriEndKey: glide.endKey,
-                startFrequency: targetFrequency,
-                endFrequency: glide.endFrequency,
-                glideStartDuration,
-                glideEndDuration,
-                suriTotalDuration: requestedDuration,
-                endpointSuppressed: true
-              }
-            })
-            : window.ShianAudioEngine.playFrequency(targetFrequency, {
+          window.ShianAudioEngine.playFrequency(targetFrequency, {
             exclusive: false,
             when,
             duration,
@@ -3585,8 +3174,6 @@
             traceContext: {
               sessionId,
               eventIndex,
-              sourceEventIndex,
-              segmentIndex: playbackEvent.segmentIndex,
               m: event.m,
               s: stringNumber,
               p: event.p,
@@ -3599,7 +3186,6 @@
               eventDurationBeat: durationBeat,
               nextEventStartTime,
               techniqueKey,
-              techniqueOccurrenceKey,
               sourceKind,
               targetFrequency,
               gainCoefficient,
@@ -3608,31 +3194,21 @@
               shortRetriggerFadeIn: shortFadeIn,
               shortRetriggerFadeOut: shortFadeOut
             }
-          });
-          playPromise.then((voice) => {
+          }).then((voice) => {
             recordScheduleTrace("voice-scheduled", {
               sessionId,
               eventIndex,
-              sourceEventIndex,
-              segmentIndex: playbackEvent.segmentIndex,
               m: event.m,
               s: stringNumber,
               p: event.p,
               d: event.d,
               v: value,
               techniqueKey,
-              techniqueOccurrenceKey,
-              sourceKind: glide ? "normal" : sourceKind,
+              sourceKind,
               targetFrequency,
-              gainCoefficient: glide ? 1 : gainCoefficient,
-              fadeInSeconds: glide ? .003 : fadeInSeconds,
-              fadeOutSeconds: glide ? Math.min(.04, requestedDuration * .16) : fadeOutSeconds,
-              isSuri: Boolean(glide),
-              suriEndKey: glide?.endKey ?? null,
-              endFrequency: glide?.endFrequency ?? null,
-              glideStartDuration: glide ? glideStartDuration : null,
-              glideEndDuration: glide ? glideEndDuration : null,
-              requestedDuration,
+              gainCoefficient,
+              fadeInSeconds,
+              fadeOutSeconds,
               traceId: voice?.traceId ?? null,
               outputDuration: voice?.duration ?? null
             });
@@ -3640,8 +3216,6 @@
             recordScheduleTrace("voice-error", {
               sessionId,
               eventIndex,
-              sourceEventIndex,
-              segmentIndex: playbackEvent.segmentIndex,
               m: event.m,
               s: stringNumber,
               p: event.p,
@@ -3671,8 +3245,8 @@
 
     function findEventIndex(beat) {
       let match = -1;
-      for (let index = 0; index < state.playbackTimeline.events.length; index += 1) {
-        if (state.playbackTimeline.events[index].startBeat <= beat + .001) match = index;
+      for (let index = 0; index < state.events.length; index += 1) {
+        if (eventStartBeat(state.events[index]) <= beat + .001) match = index;
         else break;
       }
       return match;
@@ -3689,9 +3263,9 @@
 
       const index = findEventIndex(beat);
       const measureIndex = measureIndexForBeat(beat);
-      const vocalKey = state.playbackTimeline.vocalNotes
-        .filter((entry) => beat >= entry.startBeat - .001 && beat < entry.startBeat + entry.durationBeat - .001)
-        .map((entry) => entry.playbackId)
+      const vocalKey = state.vocalNotes
+        .filter((note) => beat >= vocalNoteStartBeat(note) - .001 && beat < vocalNoteStartBeat(note) + vocalNoteDurationBeat(note) - .001)
+        .map((note) => note.id)
         .join("|");
       if (index !== state.currentIndex || vocalKey !== state.currentVocalKey || measureIndex !== state.currentMeasureIndex) {
         state.currentIndex = index;
@@ -3838,88 +3412,16 @@
         if (!item || typeof item.text !== "string" || !item.anchor) return;
         const { m, s, p } = item.anchor;
         if (!Number.isInteger(m) || ![1, 2, 3].includes(s) || !Number.isFinite(p)) return;
-        const endM = Number(item.endAnchor?.m);
-        const endS = Number(item.endAnchor?.s);
-        const endP = Number(item.endAnchor?.p);
-        const hasValidEndAnchor = item.text === "スリ" && Number.isInteger(endM)
-          && [1, 2, 3].includes(endS) && Number.isFinite(endP);
-        const key = `${m}:${s}:${p}:${item.text}${hasValidEndAnchor ? `>${endM}:${endS}:${endP}` : ""}`;
+        const key = `${m}:${s}:${p}:${item.text}`;
         if (seen.has(key)) return;
         seen.add(key);
-        marks.push({
-          m,
-          s,
-          p,
-          text: item.text,
-          ...(hasValidEndAnchor ? {
-            id: typeof item.id === "string" && item.id ? item.id : `suri-${marks.length + 1}`,
-            endAnchor: { m: endM, s: endS, p: endP },
-            side: item.side === "below" ? "below" : "above",
-            offsetXPx: finiteNumber(item.offsetXPx),
-            offsetYPx: finiteNumber(item.offsetYPx),
-            color: itemColor(item)
-          } : {})
-        });
+        marks.push({ m, s, p, text: item.text });
       });
       return marks;
     }
 
-    function scoreSuriMarks(marks) {
-      return marks.flatMap((mark) => mark.text === "スリ" && mark.endAnchor ? [{
-        id: mark.id || `suri-${mark.m}-${mark.s}-${mark.p}`,
-        anchor: { m: mark.m, s: mark.s, p: mark.p },
-        endAnchor: { ...mark.endAnchor },
-        side: mark.side === "below" ? "below" : "above",
-        offsetXPx: finiteNumber(mark.offsetXPx),
-        offsetYPx: finiteNumber(mark.offsetYPx),
-        color: itemColor(mark)
-      }] : []);
-    }
-
     function shamisenNoteKey(m, s, p) {
       return `s:${Number(m)}:${Number(s)}:${Number(p)}`;
-    }
-
-    function scoreSuriTechniques(score) {
-      const noteAnchors = new Set(
-        score.notes
-          .filter((note) => note && note.rest !== true && Number.isInteger(Number(note.m))
-            && [1, 2, 3].includes(Number(note.s)) && Number.isFinite(Number(note.p)))
-          .map((note) => shamisenNoteKey(note.m, note.s, note.p))
-      );
-      const techniqueLayer = Array.isArray(score.layers)
-        ? score.layers.find((layer) => layer && layer.id === "technique-layer")
-        : null;
-      const items = techniqueLayer && Array.isArray(techniqueLayer.items) ? techniqueLayer.items : [];
-      const byStartKey = new Map();
-      items.forEach((item) => {
-        if (!item || item.type !== "symbol" || item.text !== "スリ" || !item.anchor || !item.endAnchor) return;
-        const anchor = {
-          m: Number(item.anchor.m),
-          s: Number(item.anchor.s),
-          p: Number(item.anchor.p)
-        };
-        const endAnchor = {
-          m: Number(item.endAnchor.m),
-          s: Number(item.endAnchor.s),
-          p: Number(item.endAnchor.p)
-        };
-        const validAnchors = [anchor, endAnchor].every((candidate) =>
-          Number.isInteger(candidate.m) && candidate.m >= 0
-          && [1, 2, 3].includes(candidate.s)
-          && Number.isFinite(candidate.p) && candidate.p >= 0
-        );
-        if (!validAnchors) return;
-        const startKey = shamisenNoteKey(anchor.m, anchor.s, anchor.p);
-        const endKey = shamisenNoteKey(endAnchor.m, endAnchor.s, endAnchor.p);
-        const endIsLater = endAnchor.m > anchor.m
-          || (endAnchor.m === anchor.m && endAnchor.p > anchor.p);
-        if (!endIsLater || !noteAnchors.has(startKey) || !noteAnchors.has(endKey) || byStartKey.has(startKey)) return;
-        byStartKey.set(startKey, { type: "suri", startKey, endKey, anchor, endAnchor });
-      });
-      return Array.from(byStartKey.values()).sort((left, right) =>
-        left.anchor.m - right.anchor.m || left.anchor.p - right.anchor.p || left.anchor.s - right.anchor.s
-      );
     }
 
     function scoreAnchoredTechniques(score, text, type) {
@@ -4141,8 +3643,6 @@
       }
       const score = data.score;
       const marks = scoreMarks(score);
-      const suriMarks = scoreSuriMarks(marks);
-      const suriTechniques = scoreSuriTechniques(score);
       const hajikiTechniques = scoreHajikiTechniques(score);
       const hajikiKeys = new Set(hajikiTechniques.map((technique) => technique.key));
       const sukuiTechniques = scoreSukuiTechniques(score)
@@ -4199,8 +3699,6 @@
         meter: typeof score.meter === "string" ? score.meter : "2/4",
         events,
         marks,
-        suriMarks,
-        suriTechniques,
         hajikiTechniques,
         hajikiKeys,
         sukuiTechniques,
@@ -4325,28 +3823,14 @@
           bpm: state.bpm,
           measureCount: measureCount(),
           eventCount: state.events.length,
-          suriCount: state.suriTechniques.length,
           hajikiCount: state.hajikiKeys.size,
           sukuiCount: state.sukuiKeys.size,
           tupletCount: state.tuplets.length,
-          measureRepeatCount: state.scoreParts.length,
           playbackEndBeat: playbackEndBeat()
         },
         timeMapRanges: state.timeMapRanges,
         measures: runtimeDiagnostics.measures,
         timeline: runtimeDiagnostics.timeline,
-        playbackSegments: state.playbackTimeline.segments,
-        invalidMeasureRepeats: state.playbackTimeline.invalidRepeats,
-        playbackEvents: state.playbackTimeline.events.map((entry) => ({
-          playbackIndex: entry.playbackIndex,
-          sourceEventIndex: entry.sourceEventIndex,
-          segmentIndex: entry.segmentIndex,
-          sourceMeasure: entry.event.m,
-          p: entry.event.p,
-          d: entry.event.d,
-          startBeat: entry.startBeat,
-          durationBeat: entry.durationBeat
-        })),
         schedule: runtimeDiagnostics.schedule,
         audio: window.ShianAudioEngine?.getTrace?.() ?? []
       });
