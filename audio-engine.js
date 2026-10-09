@@ -146,14 +146,32 @@
     if (options.exclusive !== false) stopAll(0.01);
 
     const offset = Math.max(0, segment.start);
-    const sourceDuration = Math.max(0.05, Math.min(segment.end, audioBuffer.duration) - offset);
+    const baseSourceDuration = Math.max(0.05, Math.min(segment.end, audioBuffer.duration) - offset);
+    const segmentTailEnd = Number.isFinite(Number(segment.tailEnd)) ? Number(segment.tailEnd) : segment.end;
+    const availableSourceDuration = Math.max(
+      baseSourceDuration,
+      Math.min(segmentTailEnd, audioBuffer.duration) - offset
+    );
     const rate = Math.max(0.25, Math.min(4, Number(options.playbackRate) || 1));
-    const availableDuration = sourceDuration / rate;
+    const preserveSampleTail = Boolean(options.preserveSampleTail && sourceKind === "normal");
+    const requestedTailReleaseSeconds = preserveSampleTail
+      ? Math.max(0, Number(options.tailReleaseSeconds) || 0.004)
+      : 0;
     const requestedDuration = Number(options.duration);
-    const outputDuration = Number.isFinite(requestedDuration) && requestedDuration > 0
-      ? Math.min(requestedDuration, availableDuration)
-      : availableDuration;
-    const sourcePlaybackDuration = Math.min(sourceDuration, outputDuration * rate);
+    const hasRequestedDuration = Number.isFinite(requestedDuration) && requestedDuration > 0;
+    const requestedSourceDuration = hasRequestedDuration
+      ? Math.min(availableSourceDuration, Math.max(0.05, requestedDuration * rate))
+      : baseSourceDuration;
+    const availableDuration = availableSourceDuration / rate;
+    const logicalOutputDuration = hasRequestedDuration
+      ? Math.min(requestedDuration, requestedSourceDuration / rate)
+      : baseSourceDuration / rate;
+    const availableTailReleaseSeconds = preserveSampleTail
+      ? Math.max(0, availableSourceDuration / rate - logicalOutputDuration)
+      : 0;
+    const tailReleaseSeconds = Math.min(requestedTailReleaseSeconds, availableTailReleaseSeconds);
+    const outputDuration = logicalOutputDuration + tailReleaseSeconds;
+    const sourcePlaybackDuration = Math.min(availableSourceDuration, outputDuration * rate);
     const startDelay = Math.max(0, Number(options.delay) || 0);
     const absoluteWhen = Number(options.when);
     const startAt = Number.isFinite(absoluteWhen) ? absoluteWhen : ctx.currentTime + startDelay;
@@ -217,10 +235,16 @@
       offset,
       segmentStart: segment.start,
       segmentEnd: segment.end,
-      segmentDuration: sourceDuration,
+      segmentTailEnd,
+      segmentDuration: baseSourceDuration,
+      availableSourceDuration,
       playbackRate: rate,
       requestedDuration: Number.isFinite(requestedDuration) ? requestedDuration : null,
       availableDuration,
+      requestedSourceDuration,
+      logicalOutputDuration,
+      requestedTailReleaseSeconds,
+      tailReleaseSeconds,
       outputDuration,
       sourcePlaybackDuration,
       sourceStartCall: [startAt, offset, sourcePlaybackDuration],
@@ -229,6 +253,7 @@
       fadeOutSeconds: fadeOut,
       volume: Number(options.volume) || 0.9,
       schedulingLeadSeconds: startAt - ctx.currentTime,
+      preserveSampleTail,
       ...traceContext
     });
     source.start(startAt, offset, sourcePlaybackDuration);
