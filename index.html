@@ -1072,6 +1072,7 @@
         <div class="meta-row" aria-label="譜面情報">
           <span class="chip" id="tuning-chip">調子未設定</span>
           <span class="chip" id="meter-chip">拍子未設定</span>
+          <span class="chip" id="rhythm-feel-chip" aria-label="演奏のノリ">演奏のノリ：通常</span>
           <span class="chip" id="measure-chip">0小節</span>
         </div>
       </div>
@@ -1258,6 +1259,7 @@
       title: "",
       tuning: "",
       meter: "",
+      rhythmFeel: "normal",
       events: /** @type {DemoEvent[]} */ ([]),
       marks: /** @type {ScoreMark[]} */ ([]),
       suriMarks: /** @type {SuriMark[]} */ ([]),
@@ -1360,6 +1362,7 @@
       songTitle: document.querySelector("#song-title"),
       tuningChip: document.querySelector("#tuning-chip"),
       meterChip: document.querySelector("#meter-chip"),
+      rhythmFeelChip: document.querySelector("#rhythm-feel-chip"),
       measureChip: document.querySelector("#measure-chip"),
       fileButton: document.querySelector("#file-button"),
       fileInput: document.querySelector("#file-input"),
@@ -1685,6 +1688,48 @@
       return { occurrences, sections, invalid };
     }
 
+    // Playback-only swing: never change source notes, printed score, tuplets or measure order.
+    // Two ordinary eighth notes occupying one beat are redistributed 60:40.
+    // The original event objects are used only in this newly-built playback timeline.
+    function applyBounceToNormalEighthPairs(events, segments) {
+      if (state.rhythmFeel !== "bounce") return;
+      const EPS = 1e-6;
+      const fraction = 0.60;
+      for (let i = 0; i + 1 < events.length; i += 1) {
+        const first = events[i];
+        const second = events[i + 1];
+        if (first.segmentIndex !== second.segmentIndex) continue;
+        const segment = segments[first.segmentIndex];
+        if (!segment || segment.sourceMeasure == null) continue;
+        if (Number(first.event.d) !== 2 || Number(second.event.d) !== 2) continue;
+        if (Math.abs(first.durationBeat - .5) > EPS || Math.abs(second.durationBeat - .5) > EPS) continue;
+        const local = first.startBeat - segment.startBeat;
+        if (Math.abs(local - Math.round(local)) > EPS) continue;
+        if (Math.abs(second.startBeat - first.startBeat - .5) > EPS) continue;
+        if (Math.abs(second.startBeat + second.durationBeat - first.startBeat - 1) > EPS) continue;
+        // Do not alter beats containing a triplet, including layout-adjusted triplets.
+        const sourceM = segment.sourceMeasure;
+        const firstP = Number(first.event.p);
+        const secondP = Number(second.event.p);
+        if (state.tuplets.some(tuplet => {
+          if (!tuplet?.start || !tuplet?.end) return false;
+          const startM = Number(tuplet.start.m), endM = Number(tuplet.end.m);
+          if (sourceM < startM || sourceM > endM) return false;
+          const firstOverlap = (sourceM > startM || firstP >= Number(tuplet.start.p))
+            && (sourceM < endM || firstP <= Number(tuplet.end.p));
+          const secondOverlap = (sourceM > startM || secondP >= Number(tuplet.start.p))
+            && (sourceM < endM || secondP <= Number(tuplet.end.p));
+          return firstOverlap || secondOverlap;
+        })) continue;
+        const end = second.startBeat + second.durationBeat;
+        const offbeat = first.startBeat + fraction;
+        first.durationBeat = offbeat - first.startBeat;
+        second.startBeat = offbeat;
+        second.durationBeat = end - offbeat;
+        i += 1;
+      }
+    }
+
     function buildPlaybackTimeline() {
       const totalMeasures = measureCount();
       const repeatByMeasure = new Map(state.scoreParts.map((repeat) => [repeat.m, repeat]));
@@ -1764,6 +1809,7 @@
       events.sort((left, right) => left.startBeat - right.startBeat
         || left.sourceEventIndex - right.sourceEventIndex || left.segmentIndex - right.segmentIndex);
       events.forEach((entry, playbackIndex) => { entry.playbackIndex = playbackIndex; });
+      applyBounceToNormalEighthPairs(events, segments);
 
       const vocalNotes = [];
       segments.forEach((segment) => {
@@ -1983,6 +2029,7 @@
       els.songTitle.textContent = hasLoadedScore ? (state.title || "名称未設定") : "曲未読込";
       els.tuningChip.textContent = state.tuning || "調子未設定";
       els.meterChip.textContent = hasLoadedScore ? meterLabel(state.meter || "2/4") : "拍子未設定";
+      els.rhythmFeelChip.textContent = `演奏のノリ：${state.rhythmFeel === "bounce" ? "弾む" : "通常"}`;
       els.measureChip.textContent = `${measureCount()}小節`;
       els.techniqueCounts.innerHTML = `通常音 ${Math.max(0, noteCount() - techniqueCount("ス") - techniqueCount("ハ"))}<br>ス ${techniqueCount("ス")}・ハ ${techniqueCount("ハ")}`;
       els.mixControl.classList.toggle("hidden", !hasVocalNotes());
@@ -4401,6 +4448,7 @@
         title: typeof score.title === "string" ? score.title : "名称未設定",
         tuning: typeof score.tuning === "string" ? score.tuning : "調子未設定",
         meter: typeof score.meter === "string" ? score.meter : "2/4",
+        rhythmFeel: (typeof score.rhythmFeel === "string" ? score.rhythmFeel : score.rhythmFeel?.type) === "bounce" ? "bounce" : "normal",
         events,
         marks,
         suriMarks,
