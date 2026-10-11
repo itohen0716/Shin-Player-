@@ -1762,6 +1762,25 @@
         cursorBeat = segment.endBeat;
       };
 
+      // Resolve a repeated measure through any consecutive same1/same2 markers.
+      // The original note measures stay unchanged; only playback references expand.
+      const MAX_REPEAT_SOURCE_SEGMENTS = 256;
+      const resolveRepeatSourceMeasures = (measureIndex, seen = new Set()) => {
+        if (!Number.isInteger(measureIndex) || measureIndex < 0 || measureIndex >= totalMeasures
+          || seen.has(measureIndex)) return null;
+        const marker = repeatByMeasure.get(measureIndex);
+        if (!marker) return [measureIndex];
+        const nextSeen = new Set(seen);
+        nextSeen.add(measureIndex);
+        const resolved = [];
+        for (const prior of repeatSourceMeasures(marker)) {
+          const expanded = resolveRepeatSourceMeasures(prior, nextSeen);
+          if (!expanded || resolved.length + expanded.length > MAX_REPEAT_SOURCE_SEGMENTS) return null;
+          resolved.push(...expanded);
+        }
+        return resolved;
+      };
+
       abOrder.occurrences.forEach((occurrence) => {
         const measureIndex = occurrence.displayMeasure;
         const repeat = repeatByMeasure.get(measureIndex);
@@ -1770,17 +1789,13 @@
           return;
         }
 
-        const sourceMeasures = repeatSourceMeasures(repeat);
-        const hasMissingSource = sourceMeasures.some((sourceMeasure) =>
-          sourceMeasure < 0 || sourceMeasure >= totalMeasures
-        );
-        const referencesRepeatMarker = sourceMeasures.some((sourceMeasure) => repeatByMeasure.has(sourceMeasure));
-        if (hasMissingSource || referencesRepeatMarker) {
+        const sourceMeasures = resolveRepeatSourceMeasures(measureIndex);
+        if (!sourceMeasures) {
           invalidRepeats.push({
             measure: measureIndex,
             kind: repeat.kind,
-            sourceMeasures,
-            reason: hasMissingSource ? "missing-source-measure" : "repeat-source-is-repeat"
+            sourceMeasures: repeatSourceMeasures(repeat),
+            reason: "unresolvable-repeat-source"
           });
           appendSegment(null, measureIndex, repeat, 0, occurrence);
           return;
@@ -1813,17 +1828,20 @@
 
       const vocalNotes = [];
       segments.forEach((segment) => {
-        if (segment.sourceMeasure == null) return;
-        const sourceStartBeat = measureStartBeat(segment.sourceMeasure);
+        // same1/same2 copy shamisen only: vocal follows its own display measure.
+        // same2 may create multiple source segments, but must not duplicate vocals.
+        if (segment.sourceOrder !== 0) return;
+        const vocalMeasure = segment.displayMeasure;
+        const vocalStartBeat = measureStartBeat(vocalMeasure);
         state.vocalNotes.forEach((note, sourceNoteIndex) => {
-          if (note.m !== segment.sourceMeasure) return;
+          if (note.m !== vocalMeasure) return;
           vocalNotes.push({
             playbackId: `${segment.index}:${note.id}`,
             sourceId: note.id,
             sourceNoteIndex,
             segmentIndex: segment.index,
             note,
-            startBeat: segment.startBeat + Math.max(0, vocalNoteStartBeat(note) - sourceStartBeat),
+            startBeat: segment.startBeat + Math.max(0, vocalNoteStartBeat(note) - vocalStartBeat),
             durationBeat: vocalNoteDurationBeat(note)
           });
         });
