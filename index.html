@@ -416,14 +416,15 @@
       position: relative;
       display: grid;
       grid-template-columns: 38px 1fr;
-      grid-template-rows: 105px;
-      min-height: 105px;
+      /* Leave room below the staff for techniques and visual separation. */
+      grid-template-rows: 138px;
+      min-height: 138px;
       margin-bottom: 0;
     }
 
-    .score-system.has-lyrics { grid-template-rows: 105px 30px; min-height: 135px; }
-    .score-system.has-vocal { grid-template-rows: 105px 50px; min-height: 155px; }
-    .score-system.has-lyrics.has-vocal { grid-template-rows: 105px 30px 50px; min-height: 185px; }
+    .score-system.has-lyrics { grid-template-rows: 138px 46px; min-height: 184px; }
+    .score-system.has-vocal { grid-template-rows: 138px 64px; min-height: 202px; }
+    .score-system.has-lyrics.has-vocal { grid-template-rows: 138px 46px 64px; min-height: 248px; }
 
     .score-system:last-child { margin-bottom: 0; }
 
@@ -534,14 +535,14 @@
       align-self: stretch;
       overflow: hidden;
       min-width: 0;
-      padding: 2px 0 0 8px;
+      padding: 8px 0 0 8px;
       border-bottom: 1px solid #d7c3ad;
       color: #5c4639;
       font-family: "Shian 851 MkPOP", "Yu Gothic", "Noto Sans JP", sans-serif;
-      font-size: 17px;
+      font-size: 18px;
       font-weight: 500;
-      letter-spacing: -2px;
-      line-height: 25px;
+      letter-spacing: -.3px;
+      line-height: 30px;
       white-space: pre;
     }
 
@@ -563,15 +564,15 @@
       grid-column: 2;
       display: grid;
       min-width: 0;
-      height: 50px;
+      height: 64px;
     }
 
-    .vocal-measure { position: relative; min-width: 0; height: 50px; }
+    .vocal-measure { position: relative; min-width: 0; height: 64px; }
 
     .vocal-note {
       position: absolute;
       z-index: 5;
-      top: 16px;
+      top: 20px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -580,7 +581,8 @@
       translate: -50% 0;
       border-radius: 5px;
       color: var(--vocal-color, #222);
-      background: #fffdfa;
+      /* Underlay highlights must remain visible behind vocal numbers. */
+      background: transparent;
       font-family: Arial, sans-serif;
       line-height: 1;
       transition: color .15s ease, background .15s ease, box-shadow .15s ease;
@@ -761,12 +763,14 @@
     @media (min-width: 720px) {
       .score-symbol.note.has-vertical-score-digit > .score-note-digit {
         display: inline-block;
-        transform: scaleY(2);
+        transform: scaleY(1.30);
         transform-origin: 50% 50%;
       }
 
       .score-symbol.note.has-vertical-score-digit > .duration-underline {
-        top: calc(50% + var(--score-note-size, 15px) + 2px);
+        /* Keep one/two duration lines immediately below the visible numeral,
+           as in the creator's print rendering, rather than below its old 2x glyph. */
+        top: calc(50% + 11px);
         bottom: auto;
       }
 
@@ -813,7 +817,7 @@
       justify-content: center;
       gap: 3px;
       min-width: 26px;
-      min-height: 14px;
+      min-height: 19px;
       translate: -50% 0;
       color: #211a16;
       white-space: nowrap;
@@ -822,21 +826,48 @@
     .score-annotation[data-string="3"] { top: -8px; }
     .score-annotation[data-string="2"] { top: 24px; }
     .score-annotation[data-string="1"] { top: 56px; }
+    /* Finger below numeral: remove the 19px minimum that otherwise forces
+       the glyph into the underline/next string. Above-side marks are unchanged. */
+    .score-annotation.below-finger { min-height: 0; }
+    .score-annotation.below-finger .annotation-mark.finger-technique[data-technique="true"] { font-size: 15px; }
+    .score-annotation.below-finger[data-note-duration="1"] .annotation-mark.finger-technique[data-technique="true"] { font-size: 12px; }
 
     .annotation-mark {
       color: #211a16;
       font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
-      font-size: 13px;
-      font-weight: 500;
-      line-height: 1;
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1.1;
     }
 
-    .annotation-mark[data-technique="true"] {
-      color: var(--blue);
-      font-family: system-ui, sans-serif;
-      font-size: 11px;
-      font-weight: 800;
+    /* Finger numbers are saved as Unicode Roman numerals, not technique text.
+       Match the editor's readable print scale without changing the anchor. */
+    .annotation-mark.finger-technique[data-technique="true"] {
+      font-family: "Yu Mincho", "Times New Roman", serif;
+      font-size: 20px;
+      font-weight: 700;
+      font-synthesis: none;
+      line-height: 1;
+      letter-spacing: normal;
     }
+
+    .annotation-mark.oshi-bachi-technique { display:inline-flex; align-items:center; justify-content:center; min-width:30px; height:24px; }
+    .annotation-mark.oshi-bachi-technique svg { display:block; width:38px; height:24px; overflow:visible; }
+
+    .annotation-mark[data-technique="true"] {
+      font-family: "Yu Mincho", "Noto Serif JP", serif;
+      font-size: 17px;
+      font-weight: 700;
+    }
+    .annotation-mark.finger-technique[data-technique="true"] {
+      font-family: "Yu Mincho", "Times New Roman", serif;
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .lyrics-glyphs { display: inline-block; white-space: pre; transform-origin: 0 50%; }
+    .lyrics-line { position: relative; }
+    .lyrics-anchor-glyph { position: absolute; top: 8px; transform: translateX(-50%); white-space: pre; line-height: 24px; pointer-events: none; }
 
     .score-barline {
       position: absolute;
@@ -1167,6 +1198,8 @@
   <script src="./sound-segments.js"></script>
   <script src="./tuning-data.js"></script>
   <script src="./audio-engine.js"></script>
+  <script src="./annotation-layout.js"></script>
+  <script src="./creator-coordinate-port.js"></script>
   <script>
     "use strict";
 
@@ -1292,12 +1325,14 @@
       measureOffsets: [],
       scoreScaleX: 798 / 948,
       lyrics: [],
+      lyricsGlyphAnchors: [],
       lyricsVisible: false,
       vocalNotes: /** @type {VocalNote[]} */ ([]),
       vocalSlurs: [],
       vocalVisible: false,
       optionalLayers: /** @type {OptionalLayer[]} */ ([]),
       annotationCoordVersion: 1,
+      annotationLayout: null,
       number: 6,
       bpm: 80,
       isPlaying: false,
@@ -1480,7 +1515,7 @@
         .filter((note) => note.m === measureIndex)
         .reduce((maximum, note) => Math.max(maximum, note.p + note.d), 0);
       const notatedEnd = Math.max(shamisenEnd, vocalEnd);
-      return Math.max(baseUnitsPerMeasure(), notatedEnd, 1);
+      return Math.max(playbackUnitsForMeasure(measureIndex), notatedEnd, 1);
     }
 
     function rawMeasureStartUnit(measureIndex) {
@@ -2149,8 +2184,9 @@
       const positions = new Set([...events.map((event) => event.p), ...vocalNotes.map((note) => note.p)]);
       const hasTwoDigitValue = events.some((event) => event.n.some(([, value]) => String(value).length >= 2))
         || vocalNotes.some((note) => String(note.v).length >= 2);
+      const half = playbackUnitsForMeasure(measureIndex) < baseUnitsPerMeasure();
       const widthPerPosition = hasTwoDigitValue ? 30 : 26;
-      return Math.max(106, positions.size * widthPerPosition);
+      return Math.max(half ? 76 : 106, positions.size * widthPerPosition);
     }
 
     function legacyScoreNoteFontSize(measureIndex) {
@@ -2393,18 +2429,34 @@
         const group = svgElement("g", { "data-tuplet-id": tuplet.id });
         const label = svgElement("text", { x: controlX.toFixed(2), y: labelY.toFixed(2) });
         label.textContent = "3";
-        group.append(
-          svgElement("path", { d: `M ${x1.toFixed(2)} ${y1.toFixed(2)} Q ${controlX.toFixed(2)} ${controlY.toFixed(2)} ${x2.toFixed(2)} ${y2.toFixed(2)}` }),
-          svgElement("rect", {
-            class: "tuplet-label-background",
-            x: (controlX - 7).toFixed(2),
-            y: (labelY - 14).toFixed(2),
-            width: "14",
-            height: "18",
-            rx: "3"
-          }),
-          label
-        );
+        // Leave a gap *in the triplet curve* behind its 3, instead of painting
+        // an opaque white rectangle.  A white rectangle masks any transparent
+        // annotation underlay (highlight marker) and appears as a square patch.
+        // Split the quadratic Bezier itself without moving its endpoints/label.
+        const pointAt = (t) => {
+          const u = 1 - t;
+          return {
+            x: u*u*x1 + 2*u*t*controlX + t*t*x2,
+            y: u*u*y1 + 2*u*t*controlY + t*t*y2
+          };
+        };
+        const fmt = (v) => v.toFixed(2);
+        const gapT = Math.min(.34, 8 / Math.max(1, x2 - x1));
+        const leftT = .5 - gapT;
+        const rightT = .5 + gapT;
+        const leftEnd = pointAt(leftT);
+        const rightStart = pointAt(rightT);
+        const leftControl = {
+          x: (1-leftT)*x1 + leftT*controlX,
+          y: (1-leftT)*y1 + leftT*controlY
+        };
+        const rightControl = {
+          x: (1-rightT)*controlX + rightT*x2,
+          y: (1-rightT)*controlY + rightT*y2
+        };
+        const curveWithLabelGap = `M ${fmt(x1)} ${fmt(y1)} Q ${fmt(leftControl.x)} ${fmt(leftControl.y)} ${fmt(leftEnd.x)} ${fmt(leftEnd.y)} `
+          + `M ${fmt(rightStart.x)} ${fmt(rightStart.y)} Q ${fmt(rightControl.x)} ${fmt(rightControl.y)} ${fmt(x2)} ${fmt(y2)}`;
+        group.append(svgElement("path", { d: curveWithLabelGap }), label);
         svg.append(group);
       });
     }
@@ -2511,6 +2563,92 @@
       });
     }
 
+    function appendAnchoredMarks(measure, measureIndex) {
+      const groups = new Map();
+      state.marks.forEach((mark) => {
+        if (Number(mark.m) !== measureIndex || (mark.text === "スリ" && mark.endAnchor)) return;
+        if (![1, 2, 3].includes(Number(mark.s)) || !Number.isFinite(Number(mark.p))) return;
+        const key = `${mark.p}:${mark.s}:${mark.side}:${mark.offsetXPx}:${mark.offsetYPx}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(mark);
+      });
+      groups.forEach((marks) => {
+        const first = marks[0];
+        const string = Number(first.s);
+        const lineY = {3:22, 2:54, 1:86}[string];
+        const event = state.events.find((item) => item.m === measureIndex && item.p === Number(first.p)
+          && item.n.some(([s]) => Number(s) === string));
+        const rawUnits = displayUnitsForMeasure(measureIndex);
+        const pct = Math.min(97, Math.max(3, (Number(first.p) + .5) / rawUnits * 100));
+        const offsetX = (finiteNumber(event?.x) + finiteNumber(first.offsetXPx)) * state.scoreScaleX;
+        const rawOffsetY = finiteNumber(first.offsetYPx);
+        const annotation = document.createElement("span");
+        annotation.className = "score-annotation";
+        annotation.dataset.string = String(string);
+        annotation.dataset.side = first.side;
+        const isLowerFinger = first.side === "below" && marks.some(mark => ["Ⅰ", "Ⅱ", "Ⅲ"].includes(mark.text));
+        const duration = Number(event?.d) || 4;
+        // When the next string is present, saved manual Y offsets may push a
+        // lower finger across that line. Keep the saved value for 1st string,
+        // and constrain only the space-critical lower-finger cases on strings 3/2.
+        const offsetY = isLowerFinger && string > 1
+          ? Math.max(0, Math.min(rawOffsetY, duration === 4 ? 3 : 0))
+          : rawOffsetY;
+        if (isLowerFinger) {
+          annotation.classList.add("below-finger");
+          annotation.dataset.noteDuration = String(duration);
+        }
+        annotation.style.left = `calc(${pct}% + ${offsetX}px)`;
+        // 4th: no underline; 8th: one line; 16th: two lines.
+        // The per-duration top keeps the lower finger clear of the final stroke
+        // without moving it into the next string's line (pitch = 32px).
+        const lowerFingerOffset = duration === 1 ? 19 : duration === 2 ? 15 : 12;
+        annotation.style.top = `${lineY + (isLowerFinger ? lowerFingerOffset : first.side === "below" ? 14 : -31) + offsetY}px`;
+        annotation.setAttribute("aria-label", marks.map((mark) => mark.text).join("、"));
+        marks.forEach((mark) => {
+          const element = document.createElement("span");
+          element.className = "annotation-mark";
+          const isFinger = ["Ⅰ", "Ⅱ", "Ⅲ"].includes(mark.text);
+          element.dataset.technique = String(["ス","ハ","Ⅰ","Ⅱ","Ⅲ","「","押し撥","押しバチ"].includes(mark.text));
+          element.dataset.finger = String(isFinger);
+          element.style.color = itemColor(mark);
+          if (isFinger) {
+            element.classList.add("finger-technique");
+          } else {
+            element.style.fontSize = `${Math.max(17, finiteNumber(mark.size, 17))}px`;
+          }
+          // Creator app stores 押しバチ as a technique name, but draws the
+          // actual print notation as a right-angled stroke, never as text.
+          // Handle historical 「/押し撥 spellings without modifying score JSON.
+          if (mark.technique === "oshi-bachi" || ["押しバチ", "押し撥", "「"].includes(mark.text)) {
+            element.classList.add("oshi-bachi-technique");
+            element.setAttribute("role", "img");
+            element.setAttribute("aria-label", "押しバチ");
+            const glyph = svgElement("svg", { viewBox: "0 0 42 24", "aria-hidden": "true" });
+            glyph.append(svgElement("path", {
+              d: "M 21 19 V 7 H 34", fill: "none", stroke: "currentColor",
+              "stroke-width": 2.5, "stroke-linecap": "square", "stroke-linejoin": "miter"
+            }));
+            element.append(glyph);
+          } else if (isFinger) {
+            // The creator prints genuine Roman numerals (not thick SVG tally strokes).
+            // Preserve the exact saved text, string anchor, side and color.
+            element.textContent = mark.text;
+          } else {
+            element.textContent = mark.text;
+          }
+          annotation.append(element);
+        });
+        measure.append(annotation);
+      });
+    }
+
+    function separateFingerMarksFromNotes() {
+      // Note position and saved side already specify the location. The earlier
+      // collision loop added 24px each iteration and broke creator parity.
+      // Keep the original anchor; do not replace it with heuristic shifts.
+    }
+
     function annotationString(event) {
       const strings = event.n
         .map(([stringNumber]) => stringNumber)
@@ -2565,7 +2703,7 @@
     const ANNOTATION_SOURCE_STRING_SPAN = 36;
     const LYRIC_SOURCE_FONT_SIZE = 17;
     const LYRIC_MIN_FONT_SIZE = 17;
-    const COMMENT_MIN_FONT_SIZE = 20;
+    const COMMENT_MIN_FONT_SIZE = 15;
     const SCORE_PAPER_BASE_WIDTH = 864;
     const SCORE_SOURCE_WIDTH = ANNOTATION_SOURCE_RIGHT - ANNOTATION_SOURCE_LEFT;
     const SCORE_FIXED_HORIZONTAL_WIDTH = 66;
@@ -2606,6 +2744,15 @@
     }
 
     function writingCoordinateMapper() {
+      // Version 3 uses the editor's exact measure/line based projection.
+      // The legacy mapper below is retained for earlier JSON formats.
+      if (window.CreatorAnnotationPort) {
+        const baseline = legacyWritingCoordinateMapper();
+        return window.CreatorAnnotationPort.mapper(els.scorePaper, baseline);
+      }
+      return legacyWritingCoordinateMapper();
+    }
+    function legacyWritingCoordinateMapper() {
       const row = els.scorePaper.querySelector(".score-row");
       const systems = Array.from(els.scorePaper.querySelectorAll(".score-system"));
       if (!(row instanceof HTMLElement) || systems.length === 0) {
@@ -2664,7 +2811,7 @@
       const sourceScoreBottom = sourceFirstStringLocal + 45;
       const sourceLyricsTop = sourceScoreBottom + 8;
       const sourceLyricsBottom = sourceLyricsTop + 32;
-      const sourceVocalTop = (hasLyrics() ? sourceLyricsBottom : sourceScoreBottom) + 2;
+      const sourceVocalTop = (state.lyricsVisible && hasLyrics() ? sourceLyricsBottom : sourceScoreBottom) + 2;
       const sourceVocalBottom = sourceVocalTop + 50;
 
       const verticalStops = [];
@@ -2791,12 +2938,70 @@
       }
 
       function mapItemPoint(item, x, y) {
+        // Version 3 stores *each* marker corner / arrow endpoint against a
+        // specific measure and staff-line baseline. Old absolute SVG pixel
+        // values are not stable when screen width, half-bars or gaps change.
+        const anchors = item?.layoutAnchorVersion === 3 && Array.isArray(item.layoutAnchors)
+          ? item.layoutAnchors : null;
+        if (anchors?.length) {
+          const type = String(item.type || "").toLowerCase();
+          const sourcePoints = type === "pen" || type === "free" || type === "freehand" || type === "path"
+            ? normalizedPoints(item)
+            : type === "text" || type === "comment"
+              ? [{ x: finiteNumber(item.x), y: finiteNumber(item.y) }]
+              : [{ x: finiteNumber(item.x1), y: finiteNumber(item.y1) },
+                 { x: finiteNumber(item.x2), y: finiteNumber(item.y2) }];
+          if (sourcePoints.length === anchors.length) {
+            const index = sourcePoints.reduce((best, point, i) => {
+              const distance = Math.hypot(point.x - finiteNumber(x), point.y - finiteNumber(y));
+              return distance < best.distance ? { distance, index: i } : best;
+            }, { distance: Infinity, index: -1 });
+            if (index.index >= 0 && index.distance <= 1) {
+              const anchor = anchors[index.index];
+              const target = String(item.layoutTarget || "staff");
+              const measure = els.scorePaper.querySelector(`.measure[data-measure="${Number(anchor.m)}"]`);
+              if (measure instanceof HTMLElement && target !== "page") {
+                const measureRect = measure.getBoundingClientRect();
+                const system = measure.closest(".score-system");
+                const paperRect = els.scorePaper.getBoundingClientRect();
+                const xRatio = Number(anchor.x);
+                const row = system?.querySelector(".score-row");
+                const rowRect = row?.getBoundingClientRect();
+                const destX = Number.isFinite(xRatio)
+                  ? measureRect.left + xRatio * measureRect.width
+                  : rowRect?.left + finiteNumber(anchor.rowX) * rowRect.width;
+                let destY = NaN;
+                if (target === "staff") {
+                  const topLine = measure.querySelector('.string-line[data-string="3"]');
+                  const bottomLine = measure.querySelector('.string-line[data-string="1"]');
+                  if (topLine && bottomLine) {
+                    const lineTop = topLine.getBoundingClientRect().top;
+                    const lineBottom = bottomLine.getBoundingClientRect().top;
+                    const lineStep = (lineBottom - lineTop) / 2;
+                    const staffY = Number.isFinite(Number(anchor.staffY))
+                      ? Number(anchor.staffY) : Number(anchor.y) - 2;
+                    destY = lineBottom + staffY * lineStep;
+                  }
+                } else {
+                  const band = system?.querySelector(target === "lyrics" ? ".lyrics-line" : ".vocal-track");
+                  if (band) {
+                    const bandRect = band.getBoundingClientRect();
+                    destY = bandRect.top + finiteNumber(anchor.y) * bandRect.height;
+                  }
+                }
+                if (Number.isFinite(destX) && Number.isFinite(destY)) {
+                  return { x: destX - paperRect.left, y: destY - paperRect.top };
+                }
+              }
+            }
+          }
+        }
         const layoutRow = Number(item?.layoutRow);
         const layoutOffsetY = Number(item?.layoutOffsetY);
         if (Number.isInteger(layoutRow) && layoutRow >= 0 && layoutRow < systems.length && Number.isFinite(layoutOffsetY)) {
           const centerY = writingItemCenterY(item);
           const sourceCenterY = sourceAnchorBase + layoutRow * sourceRowPitch + layoutOffsetY;
-          const scaleY = anchoredItemScaleY(layoutRow, layoutOffsetY);
+          const scaleY = scaleX; // Preserve marker and arrow dimensions when staff row spacing grows.
           return {
             x: rowLeft + (finiteNumber(x) - ANNOTATION_SOURCE_LEFT) * scaleX,
             y: mappedAnchoredCenterY(sourceCenterY) + (finiteNumber(y) - centerY) * scaleY
@@ -2849,34 +3054,78 @@
       });
     }
 
+    function savedCommentTop(item) {
+      const placement = item?.layoutPlacement;
+      if (!placement || Number(placement.version) !== 2) return null;
+      const rowIndex = Number(placement.row);
+      if (!Number.isInteger(rowIndex) || rowIndex < 0) return null;
+      const system = els.scorePaper.querySelector(`.score-system[data-row-index="${rowIndex}"]`);
+      if (!(system instanceof HTMLElement)) return null;
+      const paperTop = els.scorePaper.getBoundingClientRect().top;
+      const lane = String(placement.lane || "afterScore");
+      const line = system.querySelector('.string-line[data-string="1"]');
+      const source = lane === "afterVocal" ? (system.querySelector(".vocal-track") || line)
+        : lane === "afterLyrics" ? (system.querySelector(".lyrics-line") || line) : line;
+      if (!(source instanceof HTMLElement)) return null;
+      const region = source.getBoundingClientRect();
+      const rowLine = system.querySelector('.string-line[data-string="3"]');
+      const rowBottom = line?.getBoundingClientRect();
+      const lineSpacing = rowLine && rowBottom
+        ? Math.max(12, (rowBottom.top - rowLine.getBoundingClientRect().top) / 2) : 32;
+      const offset = Number(placement.offsetTop) || 0;
+      const clearance = Math.max(0, Number(placement.clearanceTop) || 0);
+      if (lane === "beforeScore") {
+        const firstLine = rowLine?.getBoundingClientRect();
+        const offsetFromNext = Number(placement.offsetFromNextTop);
+        return firstLine && Number.isFinite(offsetFromNext)
+          ? firstLine.top - paperTop + offsetFromNext * lineSpacing : null;
+      }
+      // For staff notes the baseline is the last string line, not the score-row bottom.
+      const boundary = lane === "afterScore" ? region.top : region.bottom;
+      return boundary - paperTop + Math.max(offset, clearance) * lineSpacing;
+    }
+
     function commentLayout(item, coordinateMapper) {
       const mappedPoint = coordinateMapper.mapItemPoint(item, item.x, item.y);
+      const savedTop = coordinateMapper.commentTop
+        ? coordinateMapper.commentTop(item) : savedCommentTop(item);
+      if (Number.isFinite(savedTop)) mappedPoint.y = savedTop;
       const fontSize = Math.max(COMMENT_MIN_FONT_SIZE, finiteNumber(item.size, 16) * coordinateMapper.scaleX);
+      const isV3 = Number(item.layoutAnchorVersion) === 3 && Array.isArray(item.layoutAnchors);
+      if (Number(item.layoutTextAnchorVersion) === 2) {
+        mappedPoint.y += fontSize * 1.05 + 5 * coordinateMapper.scaleX;
+      }
       const rowLeft = finiteNumber(coordinateMapper.rowLeft, 14);
       const rowRight = finiteNumber(coordinateMapper.rowRight, SCORE_PAPER_BASE_WIDTH - 14);
-      const availableWidth = Math.max(fontSize * 2, rowRight - rowLeft - 16);
       const sourceLines = String(item.text || "").replace(/\r\n?/g, "\n").split("\n");
-      const sourceWidth = Math.max(0, ...sourceLines.map((line) => commentLineUnits(line) * fontSize));
-      const lines = sourceWidth <= availableWidth
-        ? sourceLines
-        : wrapCommentLines(item.text, availableWidth, fontSize);
-      const textWidth = Math.min(
-        availableWidth,
-        Math.max(fontSize * 2.5, ...lines.map((line) => commentLineUnits(line) * fontSize))
-      );
-      const leftLimit = rowLeft + 8;
-      const rightLimit = Math.max(leftLimit, rowRight - textWidth - 8);
-      const point = {
-        x: Math.max(leftLimit, Math.min(mappedPoint.x, rightLimit)),
-        y: mappedPoint.y
-      };
-      return {
-        point,
-        fontSize,
-        lines,
-        lineHeight: fontSize * 1.28,
-        textWidth
-      };
+      let lines, textWidth, lineHeight, point;
+      if (isV3) {
+        // Match the editor's commentWrapColumns() and wrapCommentLine().
+        // The saved anchor already defines X; never clamp it to a score row.
+        const paperWidth = Math.max(1, els.scorePaper.getBoundingClientRect().width);
+        const logicalFontSize = fontSize * 1000 / paperWidth;
+        const columns = Math.max(6, Math.min(28, Math.round(1000 / 45 * 20 / Math.max(12, logicalFontSize))));
+        lines = sourceLines.flatMap((line) => {
+          const glyphs = Array.from(line);
+          if (!glyphs.length) return [""];
+          const count = Math.ceil(glyphs.length / columns);
+          const chunk = Math.ceil(glyphs.length / count);
+          return Array.from({ length: count }, (_, index) => glyphs.slice(index * chunk, (index + 1) * chunk).join("")).filter(Boolean);
+        });
+        lineHeight = fontSize * 1.35;
+        textWidth = Math.max(fontSize * 2.5, ...lines.map(line => Array.from(line).length * fontSize * .95));
+        point = { x: mappedPoint.x, y: mappedPoint.y };
+      } else {
+        const availableWidth = Math.max(fontSize * 2, rowRight - rowLeft - 16);
+        const sourceWidth = Math.max(0, ...sourceLines.map(line => commentLineUnits(line) * fontSize));
+        lines = sourceWidth <= availableWidth ? sourceLines : wrapCommentLines(item.text, availableWidth, fontSize);
+        textWidth = Math.min(availableWidth, Math.max(fontSize * 2.5, ...lines.map(line => commentLineUnits(line) * fontSize)));
+        const leftLimit = rowLeft + 8;
+        const rightLimit = Math.max(leftLimit, rowRight - textWidth - 8);
+        point = { x: Math.max(leftLimit, Math.min(mappedPoint.x, rightLimit)), y: mappedPoint.y };
+        lineHeight = fontSize * 1.28;
+      }
+      return { point, fontSize, lines, lineHeight, textWidth, isV3 };
     }
 
     function appendWritingItem(svg, item, coordinateMapper, markerId) {
@@ -2923,14 +3172,14 @@
       }
 
       if (type === "text" || type === "comment") {
-        const { point, fontSize, lines, lineHeight, textWidth } = commentLayout(item, coordinateMapper);
+        const { point, fontSize, lines, lineHeight, textWidth, isV3 } = commentLayout(item, coordinateMapper);
         const background = String(item.background || "none");
         if (background !== "none") {
           svg.append(svgElement("rect", {
             x: point.x - 6,
-            y: point.y - fontSize * 1.08 - 4,
+            y: isV3 ? point.y - (fontSize * 1.05 + 5 * coordinateMapper.scaleX) : point.y - fontSize * 1.08 - 4,
             width: textWidth + 12,
-            height: fontSize * 1.5 + (lines.length - 1) * lineHeight,
+            height: (isV3 ? fontSize * 1.55 : fontSize * 1.5) + (lines.length - 1) * lineHeight,
             rx: 6,
             fill: background === "translucent" ? "rgba(255,255,255,.72)" : "#fff",
             stroke: "none"
@@ -2968,9 +3217,25 @@
       if (["arrow", "line", "free", "freehand", "path"].includes(type)) {
         const start = mapPoint(item.x1, item.y1);
         const end = mapPoint(item.x2, item.y2);
-        const attributes = { ...common, x1: start.x, y1: start.y, x2: end.x, y2: end.y };
-        if (type === "arrow") attributes["marker-end"] = `url(#${markerId})`;
-        svg.append(svgElement("line", attributes));
+        if (type === "arrow") {
+          // Match the creator's OPEN arrowhead.  Use the converted endpoints
+          // without moving, shortening or re-anchoring the saved arrow.
+          const dx = end.x - start.x;
+          const dy = end.y - start.y;
+          const length = Math.hypot(dx, dy);
+          const angle = Math.atan2(dy, dx);
+          const size = Math.min(10, Math.max(4, length * .18), length * .35);
+          const tip1 = { x: end.x - size * Math.cos(angle - .55), y: end.y - size * Math.sin(angle - .55) };
+          const tip2 = { x: end.x - size * Math.cos(angle + .55), y: end.y - size * Math.sin(angle + .55) };
+          const thin = { ...common, "stroke-width": 1.5, "vector-effect": "non-scaling-stroke" };
+          svg.append(svgElement("line", { ...thin, x1: start.x, y1: start.y, x2: end.x, y2: end.y }));
+          if (length > 0) svg.append(svgElement("polyline", {
+            ...thin,
+            points: `${tip1.x},${tip1.y} ${end.x},${end.y} ${tip2.x},${tip2.y}`
+          }));
+        } else {
+          svg.append(svgElement("line", { ...common, x1: start.x, y1: start.y, x2: end.x, y2: end.y }));
+        }
       }
     }
 
@@ -2984,6 +3249,17 @@
       const points = normalizedPoints(item);
       if (points.length) return Math.max(...points.map((point) => map(point.x, point.y).y)) + 8;
       return Math.max(map(item.x1, item.y1).y, map(item.x2, item.y2).y) + 20;
+    }
+
+    // Screen-only layout: make room for comments in the row they belong to.
+    // Never mutate annotations or score data; a fresh render rebuilds all gaps.
+    function reserveCommentClearance() {
+      // Editor's boundary/geometry engine, adapted to the player's rows.
+      // This is display-only and intentionally does not change playback.
+      if (window.CreatorAnnotationPort) {
+        window.CreatorAnnotationPort.reserve(els.scorePaper, state.optionalLayers, state.annotationLayout);
+        return;
+      }
     }
 
     function renderWritingLayers() {
@@ -3006,7 +3282,11 @@
             viewBox: `0 0 ${width} ${height}`,
             "aria-hidden": "true"
           });
-          markerItems.forEach((item) => appendWritingItem(underlay, item, coordinateMapper, ""));
+          markerItems.forEach((item) => {
+            const group = svgElement("g", { "data-annotation-id": item.id || "", "data-annotation-type": item.type || "" });
+            appendWritingItem(group, item, coordinateMapper, "");
+            underlay.append(group);
+          });
           els.scorePaper.append(underlay);
         }
         const svg = svgElement("svg", {
@@ -3016,46 +3296,85 @@
           viewBox: `0 0 ${width} ${height}`,
           "aria-label": layer.name
         });
-        const markerId = `writing-arrow-${layerIndex}`;
-        const defs = svgElement("defs");
-        const marker = svgElement("marker", {
-          id: markerId,
-          viewBox: "0 0 10 10",
-          refX: 9,
-          refY: 5,
-          markerWidth: 7,
-          markerHeight: 7,
-          orient: "auto-start-reverse",
-          markerUnits: "strokeWidth"
-        });
-        marker.append(svgElement("path", { d: "M 0 0 L 10 5 L 0 10 z", fill: "context-stroke" }));
-        defs.append(marker);
-        svg.append(defs);
+        // Arrowheads are drawn as open polylines, like the score creator.
+        const markerId = "";
         layer.items
           .filter((item) => !["marker", "highlight"].includes(String(item.type || "").toLowerCase()))
-          .forEach((item) => appendWritingItem(svg, item, coordinateMapper, markerId));
-        if (svg.childNodes.length > 1) els.scorePaper.append(svg);
+          .forEach((item) => {
+            const group = svgElement("g", { "data-annotation-id": item.id || "", "data-annotation-type": item.type || "" });
+            appendWritingItem(group, item, coordinateMapper, markerId);
+            svg.append(group);
+          });
+        if (svg.childNodes.length > 0) els.scorePaper.append(svg);
       });
     }
 
     function alignLyricLines() {
+      // Creator's syncLyricsToScore() uses lyricsGlyphAnchors[row][glyph]
+      // with a precise {m, measureX} per glyph. Reuse these anchors rather
+      // than compress the whole text string into the row width.
       els.scorePaper.querySelectorAll(".lyrics-line").forEach((line) => {
         if (!(line instanceof HTMLElement)) return;
-        const row = line.parentElement?.querySelector(".score-row");
-        const rowWidth = row instanceof HTMLElement ? row.getBoundingClientRect().width : 0;
-        const scaleX = rowWidth > 0 ? rowWidth / SCORE_SOURCE_WIDTH : 1;
-        const fontSize = Math.max(LYRIC_MIN_FONT_SIZE, LYRIC_SOURCE_FONT_SIZE * scaleX);
-        line.style.fontSize = `${fontSize.toFixed(2)}px`;
-        line.style.letterSpacing = `${Math.min(0, 16 * scaleX - fontSize).toFixed(2)}px`;
-        line.style.paddingLeft = `${(8 * scaleX).toFixed(2)}px`;
-
-        const characterGaps = Math.max(0, Array.from(line.textContent || "").length - 1);
-        const overflow = Math.max(0, line.scrollWidth - line.clientWidth);
-        if (characterGaps > 0 && overflow > .5) {
-          const currentSpacing = finiteNumber(parseFloat(line.style.letterSpacing));
-          const fittedSpacing = currentSpacing - (overflow + 1) / characterGaps;
-          line.style.letterSpacing = `${fittedSpacing.toFixed(2)}px`;
+        const source = line.dataset.sourceLyrics || "";
+        const system = line.closest(".score-system");
+        const rowIndex = Number(system?.dataset.rowIndex);
+        const anchorGroup = state.lyricsGlyphAnchors?.[rowIndex];
+        const saved = Array.isArray(anchorGroup?.glyphs) ? anchorGroup.glyphs : [];
+        const fullSource = String(state.lyrics?.[rowIndex] || "");
+        // Creator JSON can contain four lyric verses in one row.  Its saved
+        // glyph anchors are a flat list across all verses, with no line number.
+        // Render *only the first verse* (practice view), reusing only its
+        // anchored glyphs.  Never let the hidden verses change row height or
+        // the annotation coordinates tied to staff/lyrics/vocal regions.
+        let firstVerseGlyphs = saved;
+        if (fullSource !== source && anchorGroup?.text === fullSource) {
+          const segments = typeof Intl.Segmenter === "function"
+            ? [...new Intl.Segmenter("ja", { granularity: "grapheme" }).segment(source)].map(item => item.segment)
+            : Array.from(source);
+          const expected = segments.filter(glyph => !/^\s+$/u.test(glyph));
+          firstVerseGlyphs = saved.slice(0, expected.length);
+          if (firstVerseGlyphs.length !== expected.length
+              || firstVerseGlyphs.some((glyph, i) => glyph?.text !== expected[i])) {
+            firstVerseGlyphs = [];
+          }
         }
+        const measureMap = new Map([...system.querySelectorAll('.measure[data-measure]')]
+          .map((measure) => [Number(measure.dataset.measure), measure]));
+        const valid = anchorGroup?.text === fullSource && firstVerseGlyphs.length > 0
+          && firstVerseGlyphs.every((glyph) => measureMap.has(Number(glyph.m))
+            && Number.isFinite(Number(glyph.measureX)) && typeof glyph.text === "string");
+        line.replaceChildren();
+        line.style.fontSize = "18px";
+        line.style.letterSpacing = "normal";
+        line.style.paddingLeft = valid ? "0px" : "8px";
+        if (valid) {
+          const rowLeft = line.getBoundingClientRect().left;
+          firstVerseGlyphs.forEach((glyph) => {
+            if (!glyph.text.trim()) return;
+            const measure = measureMap.get(Number(glyph.m));
+            const rect = measure.getBoundingClientRect();
+            const position = document.createElement("span");
+            position.className = "lyrics-anchor-glyph";
+            position.textContent = glyph.text;
+            position.style.left = `${(rect.left - rowLeft + Number(glyph.measureX) * rect.width).toFixed(3)}px`;
+            line.append(position);
+          });
+          return;
+        }
+        // Legacy JSON without saved anchors: retain its prior single-verse
+        // whitespace-fitting fallback (do not alter or synthesize JSON).
+        const glyphs = document.createElement("span");
+        glyphs.className = "lyrics-glyphs";
+        line.style.letterSpacing = "-.3px";
+        line.append(glyphs);
+        const available = Math.max(1, line.clientWidth - 12);
+        const variants = [source, source.replace(/　/g, "  "), source.replace(/　/g, " "), source.replace(/　/g, " ")];
+        for (const variant of variants) {
+          glyphs.textContent = variant;
+          if (glyphs.getBoundingClientRect().width <= available + .5) break;
+        }
+        const measured = glyphs.getBoundingClientRect().width;
+        if (measured > available + .5) glyphs.style.transform = `scaleX(${(available / measured).toFixed(5)})`;
       });
     }
 
@@ -3074,17 +3393,20 @@
     function measureWeight(measureIndex) {
       const offset = Array.isArray(state.measureOffsets) ? finiteNumber(state.measureOffsets[measureIndex]) : 0;
       const events = state.events.filter((event) => event.m === measureIndex);
+      const vocalNotes = state.vocalNotes.filter((note) => note.m === measureIndex);
       const widestValue = events.reduce((maximum, event) => Math.max(
-        maximum,
-        ...event.n.map(([, value]) => String(value || "").length)
+        maximum, ...event.n.map(([, value]) => String(value || "").length)
       ), 1);
-      const occupiedPositions = new Set(events.map((event) => event.p)).size;
-      const contentWidth = Math.max(
-        384,
+      const occupiedPositions = new Set([...events.map((event) => event.p), ...vocalNotes.map((note) => note.p)]).size;
+      const ratio = playbackUnitsForMeasure(measureIndex) / baseUnitsPerMeasure();
+      const width = Math.max(
+        minimumWidthForMeasure(measureIndex),
+        (ratio < 1 ? 120 : 240),
+        384 * ratio,
         displayUnitsForMeasure(measureIndex) * 24,
-        occupiedPositions * 34 + widestValue * 10 + 48
+        occupiedPositions * 29 + widestValue * 9 + 18
       );
-      return Math.max(240, contentWidth + offset);
+      return Math.max(minimumWidthForMeasure(measureIndex), width + offset);
     }
 
     function scorePaperWidth(widestRow) {
@@ -3156,13 +3478,17 @@
         const rowStartMeasure = measureIndex;
         const hasLyricsData = hasLyrics();
         const hasVocalData = hasVocalNotes();
-        const showLyrics = state.lyricsVisible && hasLyricsData;
-        const showVocal = state.vocalVisible && hasVocalData;
+        const sourceLyric = typeof state.lyrics[rowIndex] === "string" ? state.lyrics[rowIndex] : "";
+        const firstVerse = sourceLyric.split(/\r?\n/)[0];
+        const showLyrics = state.lyricsVisible && hasLyricsData && Boolean(firstVerse.trim());
+        const rowEndMeasure = rowStartMeasure + rowCount;
+        const showVocal = state.vocalVisible && hasVocalData
+          && state.vocalNotes.some((note) => note.m >= rowStartMeasure && note.m < rowEndMeasure);
         const system = document.createElement("div");
         system.className = "score-system";
         system.dataset.rowIndex = String(rowIndex);
-        system.classList.toggle("has-lyrics", hasLyricsData);
-        system.classList.toggle("has-vocal", hasVocalData);
+        system.classList.toggle("has-lyrics", showLyrics);
+        system.classList.toggle("has-vocal", showVocal);
 
         const labels = document.createElement("div");
         labels.className = "string-labels";
@@ -3234,23 +3560,8 @@
               measure.append(item);
             });
 
-            const marks = marksForEvent(event);
-            if (marks.length) {
-              const annotation = document.createElement("span");
-              annotation.className = "score-annotation";
-              annotation.dataset.string = String(annotationString(event));
-              annotation.style.left = symbolPosition(event);
-              annotation.setAttribute("aria-label", marks.map((mark) => mark.text).join("、"));
-              marks.forEach((mark) => {
-                const markElement = document.createElement("span");
-                markElement.className = "annotation-mark";
-                markElement.dataset.technique = String(mark.text === "ス" || mark.text === "ハ");
-                markElement.textContent = mark.text;
-                annotation.append(markElement);
-              });
-              measure.append(annotation);
-            }
           });
+          appendAnchoredMarks(measure, measureIndex);
 
           row.append(measure);
           lastMeasure = measure;
@@ -3261,13 +3572,14 @@
         }
         system.append(row);
 
-        if (hasLyricsData) {
+        if (showLyrics) {
           const lyricLabel = document.createElement("span");
           lyricLabel.className = "lyrics-label";
           lyricLabel.textContent = "歌詞";
           const lyricLine = document.createElement("span");
           lyricLine.className = "lyrics-line";
-          lyricLine.textContent = typeof state.lyrics[rowIndex] === "string" ? state.lyrics[rowIndex] : "";
+          lyricLine.dataset.sourceLyrics = firstVerse;
+          lyricLine.textContent = firstVerse;
           lyricLabel.classList.toggle("score-layer-hidden", !showLyrics);
           lyricLine.classList.toggle("score-layer-hidden", !showLyrics);
           lyricLabel.setAttribute("aria-hidden", String(!showLyrics));
@@ -3275,8 +3587,8 @@
           system.append(lyricLabel, lyricLine);
         }
 
-        if (hasVocalData) {
-          const vocalGridRow = hasLyricsData ? "3" : "2";
+        if (showVocal) {
+          const vocalGridRow = showLyrics ? "3" : "2";
           const vocalLabel = document.createElement("span");
           vocalLabel.className = "vocal-label";
           vocalLabel.style.gridRow = vocalGridRow;
@@ -3307,10 +3619,12 @@
       });
 
       applyScoreNoteDensitySizes();
+      separateFingerMarksFromNotes();
       alignLyricLines();
       renderTuplets();
       renderSuriMarks();
       renderVocalSlurs();
+      reserveCommentClearance();
       renderWritingLayers();
       const visibleBeat = state.isPlaying ? currentBeat() : state.pausedBeat;
       updateHighlight(findEventIndex(visibleBeat), false, visibleBeat);
@@ -4120,6 +4434,12 @@
           s,
           p,
           text: item.text,
+          technique: item.technique === "oshi-bachi" ? "oshi-bachi" : null,
+          side: item.side === "below" ? "below" : "above",
+          offsetXPx: finiteNumber(item.offsetXPx),
+          offsetYPx: finiteNumber(item.offsetYPx),
+          color: itemColor(item),
+          size: Math.max(12, Math.min(26, finiteNumber(item.size, 16))),
           ...(hasValidEndAnchor ? {
             id: typeof item.id === "string" && item.id ? item.id : `suri-${marks.length + 1}`,
             endAnchor: { m: endM, s: endS, p: endP },
@@ -4484,12 +4804,15 @@
         rowMeasureCounts: Array.isArray(score.rowMeasureCounts) ? score.rowMeasureCounts : [],
         measureOffsets: Array.isArray(score.measureOffsets) ? score.measureOffsets.map((value) => finiteNumber(value)) : [],
         lyrics,
+        lyricsGlyphAnchors: Array.isArray(score.lyricsGlyphAnchors) ? score.lyricsGlyphAnchors : [],
         lyricsVisible: lyrics.some((line) => line.trim().length > 0),
         vocalNotes,
         vocalSlurs,
         vocalVisible: vocalNotes.length > 0 && score.vocalVisible !== false,
         optionalLayers,
-        annotationCoordVersion: Number.isFinite(score.annotationCoordVersion) ? Number(score.annotationCoordVersion) : 1
+        annotationCoordVersion: Number.isFinite(score.annotationCoordVersion) ? Number(score.annotationCoordVersion) : 1,
+        annotationLayout: score.annotationLayout && typeof score.annotationLayout === "object"
+          ? JSON.parse(JSON.stringify(score.annotationLayout)) : null
       };
     }
 
