@@ -6,10 +6,18 @@
   <meta name="theme-color" content="#f4ead9">
   <title>絲庵譜プレーヤー｜絲庵</title>
   <link rel="preload" href="./fonts/851MkPOP_101.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="./fonts/KosugiMaru-Regular.ttf" as="font" type="font/ttf" crossorigin>
   <style>
     @font-face {
       font-family: "Shian 851 MkPOP";
       src: url("./fonts/851MkPOP_101.ttf") format("truetype");
+      font-weight: 400;
+      font-style: normal;
+      font-display: block;
+    }
+    @font-face {
+      font-family: "Kosugi Maru";
+      src: url("./fonts/KosugiMaru-Regular.ttf") format("truetype");
       font-weight: 400;
       font-style: normal;
       font-display: block;
@@ -57,7 +65,7 @@
     .app-shell {
       width: min(1160px, 100%);
       margin: 0 auto;
-      padding: 16px 14px calc(122px + env(safe-area-inset-bottom));
+      padding: 16px 14px calc(222px + env(safe-area-inset-bottom));
     }
 
     .topbar {
@@ -538,7 +546,7 @@
       padding: 8px 0 0 8px;
       border-bottom: 1px solid #d7c3ad;
       color: #5c4639;
-      font-family: "Shian 851 MkPOP", "Yu Gothic", "Noto Sans JP", sans-serif;
+      font-family: "Kosugi Maru", "BIZ UDゴシック", "Yu Gothic", sans-serif;
       font-size: 18px;
       font-weight: 500;
       letter-spacing: -.3px;
@@ -981,6 +989,101 @@
     .rest-key-symbol[data-duration="4"]::after { display: none; }
     .rest-key-symbol[data-duration="1"]::after { box-shadow: 0 3px 0 currentColor; }
 
+    /* AB practice controls: two compact lines at the left of playback on PC. */
+    .transport-layout {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin: 0 auto;
+      max-width: 100%;
+    }
+    .ab-loop-card { grid-column: auto; }
+    .transport .ab-loop-card {
+      flex: 0 0 auto;
+      max-width: none;
+      margin: 0;
+      padding: 4px 8px;
+      border-radius: 9px;
+      box-shadow: none;
+    }
+    .ab-loop-compact {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 4px;
+    }
+    .ab-loop-top, .ab-loop-info {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+    .ab-loop-caption {
+      flex: 0 0 auto;
+      font: 700 11px/1.2 system-ui, sans-serif;
+      color: var(--brown-dark);
+    }
+    .ab-loop-row { display: flex; align-items: center; gap: 3px; }
+    .ab-loop-row button {
+      min-height: 24px;
+      padding: 3px 5px;
+      white-space: nowrap;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fffdf9;
+      color: var(--brown-dark);
+      font: 700 11px/1.3 system-ui, sans-serif;
+      cursor: pointer;
+    }
+    .ab-loop-row button[aria-pressed="true"] { background: #e0ebdf; border-color: #78956f; color: #315c3c; }
+    .ab-loop-row button:disabled { opacity: .55; cursor: default; }
+    .ab-loop-info { gap: 5px; padding: 2px 3px; background: #f8f4ef; border-radius: 4px; }
+    .ab-loop-mode {
+      flex: 0 0 auto;
+      padding: 2px 3px;
+      border-radius: 4px;
+      background: #f1ede7;
+      color: #6d6055;
+      font: 700 10px/1.25 system-ui, sans-serif;
+    }
+    .ab-loop-mode.is-on { background: #e0ebdf; color: #245b38; }
+    .ab-loop-status {
+      margin: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--brown-dark);
+      font: 10px/1.25 system-ui, sans-serif;
+    }
+    .ab-loop-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    .transport .transport-inner {
+      grid-template-columns: 40px 195px 40px;
+      gap: 8px;
+      width: auto;
+      margin: 0;
+    }
+    .transport .transport-secondary { width: 40px; height: 40px; font-size: 17px; }
+    .transport .play-button { min-height: 44px; border-radius: 13px; }
+    @media (max-width: 620px) {
+      .transport-layout { flex-direction: column; gap: 5px; }
+      .transport .ab-loop-card { max-width: 100%; }
+      .transport .transport-inner { grid-template-columns: 42px minmax(155px, 205px) 42px; }
+      .transport .transport-secondary { width: 42px; height: 42px; }
+    }
+    .score-symbol.ab-loop-selected { outline: 2px dashed #596fc0; outline-offset: 2px; border-radius: 3px; }
+    .score-symbol.ab-loop-a, .score-symbol.ab-loop-b { z-index: 8; outline: 2px solid; outline-offset: 1px; }
+    .score-symbol.ab-loop-a { outline-color: #187b45; background: rgba(35,143,80,.12); }
+    .score-symbol.ab-loop-b { outline-color: #a54a1f; background: rgba(189,109,59,.13); }
+    .score-symbol.ab-loop-a::before, .score-symbol.ab-loop-b::before {
+      position: absolute; top: -17px; left: -12px; z-index: 3;
+      min-width: 17px; height: 16px; border-radius: 4px;
+      color: white; text-align: center; font: 700 11px/16px system-ui, sans-serif;
+      pointer-events: none;
+    }
+    .score-symbol.ab-loop-a::before { content: "A"; background: #187b45; }
+    .score-symbol.ab-loop-b::before { content: "B"; background: #a54a1f; }
+
     .transport {
       position: fixed;
       z-index: 30;
@@ -1056,7 +1159,7 @@
     .toast.is-visible { translate: -50% 0; opacity: 1; }
 
     @media (min-width: 720px) {
-      .app-shell { padding: 0 24px 132px; }
+      .app-shell { padding: 0 24px 220px; }
       .control-grid { grid-template-columns: 1fr 1fr; }
       .number-card { grid-column: 1 / -1; }
       .score-summary { min-height: 150px; padding: 16px 22px; }
@@ -1159,6 +1262,7 @@
           <button class="number-button" type="button" data-number="8" aria-pressed="false">八本</button>
         </div>
       </section>
+
     </div>
 
     <div class="notice" role="note">
@@ -1186,10 +1290,30 @@
   </main>
 
   <div class="transport" aria-label="再生操作">
+    <div class="transport-layout">
+      <section class="card control-card ab-loop-card" aria-label="AB区間練習（譜面のくり返しA・Bとは別）">
+        <div class="ab-loop-compact">
+          <div class="ab-loop-top">
+            <strong class="ab-loop-caption">AB練習</strong>
+            <div class="ab-loop-row">
+            <button id="ab-set-a" type="button" title="譜面の数字を選んで開始位置Aを設定">A設定</button>
+            <button id="ab-set-b" type="button" title="譜面の数字を選んで終了位置Bを設定">B設定</button>
+            <button id="ab-toggle" type="button" aria-pressed="false" disabled title="設定した区間の繰り返しを開始または解除">ループ開始</button>
+            <button id="ab-clear" type="button" title="A・Bの設定を両方消去">解除</button>
+            </div>
+          </div>
+          <div class="ab-loop-info">
+            <span class="ab-loop-mode" id="ab-mode" aria-live="polite">現在：OFF（通常）</span>
+            <p class="ab-loop-status" id="ab-status" role="status">A：未設定 → B：未設定</p>
+          </div>
+        </div>
+        <p class="ab-loop-visually-hidden" id="ab-help">譜面の数字を選んでAまたはBを設定。Aはその音の開始、Bはその音の終わりです。再生中は選択せずに押すと現在位置を設定できます。Bの後に1拍休んでAから再演奏します。</p>
+      </section>
     <div class="transport-inner">
       <button class="transport-secondary" id="rewind-button" type="button" aria-label="先頭へ戻る">↶</button>
       <button class="play-button" id="play-button" type="button" data-state="stopped">▶ 再生する</button>
       <button class="transport-secondary" id="sound-button" type="button" aria-label="三味線音を消す" aria-pressed="true">♪</button>
+    </div>
     </div>
   </div>
 
@@ -1356,6 +1480,14 @@
       toastTimer: 0,
       tempoRestartTimer: 0,
       lastFollowedRow: -1,
+      abStartBeat: null,
+      abEndBeat: null,
+      abStartSourceIndex: null,
+      abEndSourceIndex: null,
+      abSelectedSourceIndex: null,
+      abEnabled: false,
+      abLoopGapUntilMs: 0,
+      abResumeGap: false,
       wakeLock: null
     };
 
@@ -1415,6 +1547,12 @@
       layerOptions: document.querySelector("#layer-options"),
       scoreFrame: document.querySelector("#score-frame"),
       scorePaper: document.querySelector("#score-paper"),
+      abSetA: document.querySelector("#ab-set-a"),
+      abSetB: document.querySelector("#ab-set-b"),
+      abToggle: document.querySelector("#ab-toggle"),
+      abClear: document.querySelector("#ab-clear"),
+      abStatus: document.querySelector("#ab-status"),
+      abMode: document.querySelector("#ab-mode"),
       playButton: document.querySelector("#play-button"),
       rewindButton: document.querySelector("#rewind-button"),
       soundButton: document.querySelector("#sound-button"),
@@ -3191,7 +3329,7 @@
           fill: color,
           stroke: "none",
           "font-size": fontSize + 1,
-          "font-family": '"Shian 851 MkPOP", "Yu Gothic", "Noto Sans JP", sans-serif',
+          "font-family": '"Kosugi Maru", "BIZ UDゴシック", "Yu Gothic", sans-serif',
           "font-weight": 600,
           "dominant-baseline": "alphabetic"
         });
@@ -3381,7 +3519,10 @@
     async function rerenderAfterScoreFontLoad() {
       if (!document.fonts) return;
       try {
-        await document.fonts.load('17px "Shian 851 MkPOP"');
+        await Promise.all([
+          document.fonts.load('17px "Shian 851 MkPOP"'),
+          document.fonts.load('18px "Kosugi Maru"')
+        ]);
         await document.fonts.ready;
         scoreFontReady = true;
         if (measureCount() > 0) renderScore();
@@ -3627,7 +3768,8 @@
       reserveCommentClearance();
       renderWritingLayers();
       const visibleBeat = state.isPlaying ? currentBeat() : state.pausedBeat;
-      updateHighlight(findEventIndex(visibleBeat), false, visibleBeat);
+      if (!state.abLoopGapUntilMs) updateHighlight(findEventIndex(visibleBeat), false, visibleBeat);
+      refreshAbControls();
     }
 
     function measureIndexForBeat(beat) {
@@ -3695,6 +3837,162 @@
       els.positionText.textContent = `${measureIndex + 1}小節目・${Number.isInteger(beatWithinMeasure) ? beatWithinMeasure : beatWithinMeasure.toFixed(1)}拍目${technique}`;
 
       if (shouldScroll && measure instanceof HTMLElement) scrollToCurrentSystem(measure);
+    }
+
+    // AB practice markers use the already-expanded playback timeline; these do not
+    // alter the score's repeat A/B barlines, JSON, or triplet time mapping.
+    function abRangeValid() {
+      const start = state.abStartBeat, end = state.abEndBeat;
+      return Number.isFinite(start) && Number.isFinite(end)
+        && start >= 0 && end - start >= .24 && end <= playbackEndBeat() + .001;
+    }
+
+    function abBeatLabel(beat) {
+      if (!Number.isFinite(beat)) return "未設定";
+      const segment = playbackSegmentForBeat(Math.max(0, Math.min(beat, playbackEndBeat() - .0001)));
+      if (!segment) return `${beat.toFixed(2)}拍`;
+      const measure = Number(segment.displayMeasure ?? segment.sourceMeasure) + 1;
+      const offset = Math.max(0, beat - segment.startBeat);
+      const step = (Math.round(offset * 100) / 100) + 1;
+      return `${measure}小節 ${step.toFixed(2).replace(/\.00$/, "")}拍目`;
+    }
+
+    function refreshAbSelection() {
+      els.scorePaper.querySelectorAll(".score-symbol.ab-loop-selected, .score-symbol.ab-loop-a, .score-symbol.ab-loop-b")
+        .forEach((node) => node.classList.remove("ab-loop-selected", "ab-loop-a", "ab-loop-b"));
+      const decorate = (index, className) => {
+        if (!Number.isInteger(index)) return;
+        els.scorePaper.querySelectorAll(`[data-event-index="${index}"]`)
+          .forEach((node) => node.classList.add(className));
+      };
+      decorate(state.abStartSourceIndex, "ab-loop-a");
+      decorate(state.abEndSourceIndex, "ab-loop-b");
+      decorate(state.abSelectedSourceIndex, "ab-loop-selected");
+    }
+
+    function refreshAbControls() {
+      els.abToggle.disabled = !abRangeValid();
+      // The button describes the next action; the pill separately states the current mode.
+      els.abToggle.textContent = state.abEnabled ? "ループ停止" : "ループ開始";
+      els.abToggle.setAttribute("aria-pressed", String(state.abEnabled));
+      els.abMode.textContent = state.abEnabled ? "現在：ON（繰返し）" : "現在：OFF（通常）";
+      els.abMode.classList.toggle("is-on", state.abEnabled);
+      els.abStatus.textContent = `A：${abBeatLabel(state.abStartBeat)} → B：${abBeatLabel(state.abEndBeat)}`;
+      els.abStatus.title = els.abStatus.textContent;
+      refreshAbSelection();
+    }
+
+    function clearAbRange() {
+      if (state.abLoopGapUntilMs && state.isPlaying) {
+        state.pausedBeat = state.abStartBeat ?? 0;
+        stopScheduledAudio();
+        cancelAnimationFrame(state.animationId);
+        setPlayingUi(false);
+        void releaseWakeLock();
+      }
+      state.abStartBeat = null;
+      state.abEndBeat = null;
+      state.abStartSourceIndex = null;
+      state.abEndSourceIndex = null;
+      state.abSelectedSourceIndex = null;
+      state.abEnabled = false;
+      state.abLoopGapUntilMs = 0;
+      state.abResumeGap = false;
+      refreshAbControls();
+    }
+
+    function setAbMarker(which) {
+      const sourceIndex = state.abSelectedSourceIndex;
+      const referenceBeat = currentBeat();
+      let beat = referenceBeat;
+      let associatedSourceIndex = null;
+      if (Number.isInteger(sourceIndex)) {
+        const appearances = state.playbackTimeline.events.filter((entry) => entry.sourceEventIndex === sourceIndex);
+        const entry = appearances.find((candidate) => candidate.startBeat >= referenceBeat - .001) ?? appearances[0];
+        if (!entry) { showToast("選んだ音が再生順にありません。"); return; }
+        beat = which === "a" ? entry.startBeat : entry.startBeat + entry.durationBeat;
+        associatedSourceIndex = sourceIndex;
+      }
+      if (which === "a") {
+        beat = Math.max(0, Math.min(beat, playbackEndBeat() - .25));
+        state.abStartBeat = beat;
+        state.abStartSourceIndex = associatedSourceIndex;
+        if (Number.isFinite(state.abEndBeat) && state.abEndBeat - beat < .24) {
+          state.abEndBeat = null;
+          state.abEndSourceIndex = null;
+        }
+      } else {
+        beat = Math.max(0, Math.min(beat, playbackEndBeat()));
+        if (Number.isFinite(state.abStartBeat) && beat - state.abStartBeat < .24) {
+          showToast("BはAより後の音、または後の再生位置にしてください。");
+          return;
+        }
+        state.abEndBeat = beat;
+        state.abEndSourceIndex = associatedSourceIndex;
+      }
+      state.abSelectedSourceIndex = null;
+      state.abEnabled = false;
+      state.abResumeGap = false;
+      if (state.abLoopGapUntilMs) {
+        state.abLoopGapUntilMs = 0;
+        stopScheduledAudio();
+        cancelAnimationFrame(state.animationId);
+        state.pausedBeat = state.abStartBeat ?? 0;
+        setPlayingUi(false);
+        void releaseWakeLock();
+      }
+      refreshAbControls();
+      showToast(`${which === "a" ? "開始A" : "終了B"}を設定しました。`);
+    }
+
+    function restartAbAtBeginning(leadSeconds = .08) {
+      const start = state.abStartBeat;
+      stopScheduledAudio();
+      state.pausedBeat = start;
+      state.startAtMs = performance.now() + leadSeconds * 1000;
+      state.abLoopGapUntilMs = 0;
+      state.currentIndex = -1;
+      state.currentVocalKey = "";
+      state.currentMeasureIndex = -1;
+      if (state.soundEnabled) schedulePlaybackAudio(start, leadSeconds);
+      updateHighlight(findEventIndex(start), true, start);
+    }
+
+    function setAbLoopEnabled() {
+      if (!abRangeValid()) { showToast("AとBを順に設定してください。"); return; }
+      if (state.abEnabled) {
+        state.abEnabled = false;
+        if (state.abLoopGapUntilMs) {
+          // Avoid playing already-scheduled A audio while switching to normal playback.
+          restartAbAtBeginning(state.soundEnabled ? .08 : 0);
+        }
+      } else {
+        state.abEnabled = true;
+        state.abSelectedSourceIndex = null;
+        const beat = currentBeat();
+        if (!state.isPlaying) {
+          state.pausedBeat = state.abStartBeat;
+          updateHighlight(findEventIndex(state.pausedBeat), false, state.pausedBeat);
+        } else if (beat < state.abStartBeat - .001 || beat >= state.abEndBeat - .001) {
+          restartAbAtBeginning(state.soundEnabled ? .08 : 0);
+        }
+      }
+      refreshAbControls();
+    }
+
+    function beginAbLoopGap(nowMs) {
+      const gapBeats = 1;
+      const lead = gapBeats * 60 / state.bpm + (state.soundEnabled ? .04 : 0);
+      stopScheduledAudio();
+      state.pausedBeat = state.abStartBeat;
+      state.startAtMs = nowMs + lead * 1000;
+      state.abLoopGapUntilMs = state.startAtMs;
+      state.currentIndex = -1;
+      state.currentVocalKey = "";
+      state.currentMeasureIndex = -1;
+      els.scorePaper.querySelectorAll(".is-playing").forEach((node) => node.classList.remove("is-playing"));
+      els.positionText.textContent = "AB区間練習：1拍休止中";
+      if (state.soundEnabled) schedulePlaybackAudio(state.abStartBeat, lead);
     }
 
     function setPlayingUi(isPlaying) {
@@ -4263,7 +4561,19 @@
 
     function animationTick(nowMs) {
       if (!state.isPlaying) return;
+      if (state.abLoopGapUntilMs) {
+        if (nowMs < state.abLoopGapUntilMs) {
+          state.animationId = requestAnimationFrame(animationTick);
+          return;
+        }
+        state.abLoopGapUntilMs = 0;
+      }
       const beat = currentBeat(nowMs);
+      if (state.abEnabled && abRangeValid() && beat >= state.abEndBeat - .001) {
+        beginAbLoopGap(nowMs);
+        state.animationId = requestAnimationFrame(animationTick);
+        return;
+      }
       if (beat >= playbackEndBeat()) {
         stopPlayback(true);
         showToast("最後まで再生しました。");
@@ -4312,6 +4622,8 @@
       }
       if (state.isPlaying) {
         state.pausedBeat = currentBeat();
+        state.abLoopGapUntilMs = 0;
+        state.abResumeGap = false;
         cancelAnimationFrame(state.animationId);
         state.playbackToken += 1;
         stopScheduledAudio();
@@ -4339,7 +4651,14 @@
         }
       }
       if (state.pausedBeat >= playbackEndBeat()) state.pausedBeat = 0;
-      const leadSeconds = state.soundEnabled ? .08 : 0;
+      if (state.abEnabled && abRangeValid()
+          && (state.pausedBeat < state.abStartBeat - .001 || state.pausedBeat >= state.abEndBeat - .001)) {
+        state.pausedBeat = state.abStartBeat;
+      }
+      const resumeGap = state.abEnabled && state.abResumeGap;
+      state.abResumeGap = false;
+      const leadSeconds = (state.soundEnabled ? .08 : 0) + (resumeGap ? 60 / state.bpm : 0);
+      state.abLoopGapUntilMs = resumeGap ? performance.now() + leadSeconds * 1000 : 0;
       if (state.soundEnabled) {
         try {
           schedulePlaybackAudio(state.pausedBeat, leadSeconds);
@@ -4351,6 +4670,7 @@
         }
       }
       state.startAtMs = performance.now() + leadSeconds * 1000;
+      if (resumeGap) state.abLoopGapUntilMs = state.startAtMs;
       state.currentIndex = -1;
       state.currentVocalKey = "";
       state.currentMeasureIndex = -1;
@@ -4365,6 +4685,8 @@
       state.tempoRestartTimer = 0;
       cancelAnimationFrame(state.animationId);
       state.pausedBeat = 0;
+      state.abLoopGapUntilMs = 0;
+      state.abResumeGap = false;
       state.currentIndex = -1;
       state.currentVocalKey = "";
       state.currentMeasureIndex = -1;
@@ -4387,8 +4709,11 @@
     function setTempo(value) {
       const newBpm = Math.max(40, Math.min(160, Math.round(value)));
       const wasPlaying = state.isPlaying;
+      const wasGap = Boolean(state.abLoopGapUntilMs);
       const beat = currentBeat();
       state.bpm = newBpm;
+      state.abLoopGapUntilMs = 0;
+      state.abResumeGap = wasGap && state.abEnabled;
       state.pausedBeat = beat;
       els.tempoSlider.value = String(newBpm);
       els.tempoValue.textContent = `♩＝${newBpm}`;
@@ -4895,6 +5220,7 @@
       }
       const parsed = parseScoreFile(json);
       stopPlayback(true);
+      clearAbRange();
       Object.assign(state, parsed);
       rebuildEventTimeline();
       updateSummary();
@@ -4985,6 +5311,22 @@
       if (!(input instanceof HTMLInputElement) || input.type !== "checkbox") return;
       setOptionalLayerVisibility(input.dataset.layerKind || "", input.dataset.layerId || "", input.checked);
     });
+    els.scorePaper.addEventListener("click", (event) => {
+      const note = event.target.closest(".score-symbol[data-event-index]");
+      if (!(note instanceof HTMLElement)) return;
+      const sourceIndex = Number(note.dataset.eventIndex);
+      if (!Number.isInteger(sourceIndex)) return;
+      state.abSelectedSourceIndex = sourceIndex;
+      refreshAbControls();
+      showToast("選択した音をAまたはBに設定できます。");
+    });
+    els.abSetA.addEventListener("click", () => setAbMarker("a"));
+    els.abSetB.addEventListener("click", () => setAbMarker("b"));
+    els.abToggle.addEventListener("click", setAbLoopEnabled);
+    els.abClear.addEventListener("click", () => {
+      clearAbRange();
+      showToast("AB範囲を解除しました。");
+    });
     els.playButton.addEventListener("click", togglePlayback);
     els.rewindButton.addEventListener("click", () => stopPlayback(true));
     els.soundButton.addEventListener("click", async () => {
@@ -4997,7 +5339,10 @@
       } else if (state.isPlaying) {
         try {
           await ensurePlaybackAudio();
-          schedulePlaybackAudio(currentBeat(), .03);
+          const lead = state.abLoopGapUntilMs
+            ? Math.max(.03, (state.abLoopGapUntilMs - performance.now()) / 1000)
+            : .03;
+          schedulePlaybackAudio(currentBeat(), lead);
         } catch (error) {
           console.error(error);
           state.soundEnabled = false;
@@ -5016,6 +5361,8 @@
     document.addEventListener("visibilitychange", () => {
       if (document.hidden && state.isPlaying) {
         state.pausedBeat = currentBeat();
+        state.abLoopGapUntilMs = 0;
+        state.abResumeGap = false;
         cancelAnimationFrame(state.animationId);
         state.playbackToken += 1;
         stopScheduledAudio();
@@ -5038,6 +5385,8 @@
 
     window.addEventListener("pagehide", () => {
       cancelAnimationFrame(state.animationId);
+      state.abLoopGapUntilMs = 0;
+      state.abResumeGap = false;
       state.playbackToken += 1;
       stopScheduledAudio();
       void releaseWakeLock();
@@ -5048,6 +5397,7 @@
     updateSummary();
     renderLayerControls();
     renderScore();
+    refreshAbControls();
     if (restoredLastScore) showToast(`前回の「${state.title}」を開きました。`);
     void rerenderAfterScoreFontLoad();
   </script>
