@@ -1642,6 +1642,7 @@
 
     function playbackUnitsForMeasure(measureIndex) {
       const special = state.measureSpecials?.[String(measureIndex)];
+      if (special?.type === "beatOverride" && Number.isInteger(Number(special.beats)) && Number(special.beats) >= 1 && Number(special.beats) <= 16) return Number(special.beats) * 4;
       return baseUnitsPerMeasure() * (special?.type === "hanma" && Number(special.lengthRatio) === .5 ? .5 : 1);
     }
 
@@ -5021,8 +5022,10 @@
       return Object.fromEntries(Object.entries(score.measureSpecials).flatMap(([key, special]) => {
         const measureIndex = Number(key);
         if (!Number.isInteger(measureIndex) || measureIndex < 0 || !special || typeof special !== "object") return [];
-        if (special.type !== "hanma" || Number(special.lengthRatio) !== .5) return [];
-        return [[String(measureIndex), { ...special, type: "hanma", lengthRatio: .5, label: "〔半間〕" }]];
+        if (special.type === "hanma" && Number(special.lengthRatio) === .5) return [[String(measureIndex), { ...special, type: "hanma", lengthRatio: .5, label: "〔半間〕" }]];
+        const beats = Number(special.beats);
+        if (special.type === "beatOverride" && Number.isInteger(beats) && beats >= 1 && beats <= 16) return [[String(measureIndex), { type: "beatOverride", beats }]];
+        return [];
       }));
     }
 
