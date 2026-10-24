@@ -299,11 +299,16 @@
       Number(options.glideAttackHold) || Number(segment.attackHold) / startRate || 0
     );
     const requestedAttackHold = Math.min(requestedHold, Math.max(0, requestedDuration - 0.04));
+    const middleRateInput = Number(options.glideMiddleRate);
+    const middleRate = Number.isFinite(middleRateInput) && middleRateInput > 0
+      ? Math.max(0.25, Math.min(4, middleRateInput)) : null;
+    const middleFraction = Math.min(0.85, Math.max(0.15, Number(options.glideMiddleFraction) || 0.5));
     const requestedSlideDuration = Math.max(0, requestedDuration - requestedAttackHold);
-    const averageRate = (
-      startRate * requestedAttackHold
-      + ((startRate + endRate) / 2) * requestedSlideDuration
-    ) / requestedDuration;
+    const averageRate = middleRate !== null
+      ? ((startRate + middleRate) * middleFraction
+        + (middleRate + endRate) * (1 - middleFraction)) / 2
+      : (startRate * requestedAttackHold
+        + ((startRate + endRate) / 2) * requestedSlideDuration) / requestedDuration;
     const requestedSourceDuration = Math.min(
       availableSourceDuration,
       Math.max(0.05, requestedDuration * averageRate)
@@ -334,8 +339,13 @@
 
     source.buffer = audioBuffer;
     source.playbackRate.setValueAtTime(startRate, startAt);
-    source.playbackRate.setValueAtTime(startRate, pitchChangeStartAt);
-    source.playbackRate.linearRampToValueAtTime(endRate, endAt);
+    if (middleRate !== null) {
+      source.playbackRate.linearRampToValueAtTime(middleRate, startAt + outputDuration * middleFraction);
+      source.playbackRate.linearRampToValueAtTime(endRate, endAt);
+    } else {
+      source.playbackRate.setValueAtTime(startRate, pitchChangeStartAt);
+      source.playbackRate.linearRampToValueAtTime(endRate, endAt);
+    }
     const destination = options.destination && typeof options.destination.connect === "function"
       ? options.destination
       : ctx.destination;
@@ -375,6 +385,8 @@
       playbackRate: startRate,
       playbackRateStart: startRate,
       playbackRateEnd: endRate,
+      playbackRateMiddle: middleRate,
+      glideMiddleFraction: middleRate !== null ? middleFraction : null,
       playbackRateChangeStartAt: pitchChangeStartAt,
       playbackRateEndAt: endAt,
       requestedDuration,
@@ -471,7 +483,19 @@
       ...options,
       sourceKind,
       playbackRate: start / source.frequency,
-      playbackRateEnd: end / source.frequency
+      playbackRateEnd: end / source.frequency,
+      glideMiddleRate: Number.isFinite(Number(options.middleFrequency)) && Number(options.middleFrequency) > 0
+        ? Number(options.middleFrequency) / source.frequency : undefined
+    });
+  }
+
+  // One source, one pluck and two continuous pitch ramps. The 2-note glide remains unchanged.
+  async function playFrequencyThreeNoteGlide(startFrequency, middleFrequency, endFrequency, options = {}) {
+    if (!(Number.isFinite(Number(middleFrequency)) && Number(middleFrequency) > 0)) {
+      throw new Error("3音スリの中間音高が不正です。");
+    }
+    return playFrequencyGlide(startFrequency, endFrequency, {
+      ...options, middleFrequency: Number(middleFrequency), glideAttackHold: 0
     });
   }
 
@@ -483,6 +507,7 @@
     playSegment,
     playFrequency,
     playFrequencyGlide,
+    playFrequencyThreeNoteGlide,
     stop: stopAll,
     stopAll,
     getTrace,

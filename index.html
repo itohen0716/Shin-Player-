@@ -4246,6 +4246,33 @@
             });
             return;
           }
+          // A single middle pitch in the same string and playback segment is
+          // a three-note suri; middle and end are never struck again.
+          const middles = [...noteTimingsByKey.values()].flat().filter((candidate) =>
+            candidate.note.s === start.note.s && candidate.note.s === end.note.s
+            && candidate.playbackEvent.segmentIndex === start.playbackEvent.segmentIndex
+            && candidate.startBeat > start.startBeat + 1e-9
+            && candidate.startBeat < end.startBeat - 1e-9
+          ).sort((left, right) => left.startBeat - right.startBeat);
+          const middle = middles.length === 1 && Number.isFinite(middles[0].frequency)
+            ? middles[0] : null;
+          if (middle && [start, middle, end].every((entry) => Number(entry.note.d) === 2)) {
+            usedEnds.add(end.occurrenceKey);
+            suppressedEndpoints.add(middle.occurrenceKey);
+            suppressedEndpoints.add(end.occurrenceKey);
+            glides.set(start.occurrenceKey, {
+              threeNote: true,
+              startKey: suri.startKey,
+              endKey: suri.endKey,
+              middleKey: middle.key,
+              middleFrequency: middle.frequency,
+              endFrequency: end.frequency,
+              endDurationBeat: end.durationBeat,
+              startDurationBeat: start.durationBeat,
+              totalDurationBeat: Math.min(1, end.startBeat + end.durationBeat - start.startBeat)
+            });
+            return;
+          }
           usedEnds.add(end.occurrenceKey);
           suppressedEndpoints.add(end.occurrenceKey);
           glides.set(start.occurrenceKey, {
@@ -4407,8 +4434,27 @@
           const tailReleaseSeconds = preserveSampleTail ? .004 : undefined;
           const glideStartDuration = duration;
           const glideEndDuration = glide ? glide.endDurationBeat * secondsPerBeat : 0;
-          const requestedDuration = glide ? glideStartDuration + glideEndDuration : duration;
-          const playPromise = glide
+          const requestedDuration = glide?.threeNote
+            ? glide.totalDurationBeat * secondsPerBeat
+            : glide ? glideStartDuration + glideEndDuration : duration;
+          const playPromise = glide?.threeNote
+            ? window.ShianAudioEngine.playFrequencyThreeNoteGlide(
+              targetFrequency, glide.middleFrequency, glide.endFrequency, {
+                exclusive: false,
+                when,
+                duration: requestedDuration,
+                glideMiddleFraction: 0.5,
+                tightStop: true,
+                volume,
+                sourceKind: "normal",
+                destination: state.shamisenGain,
+                traceContext: { sessionId, eventIndex, sourceEventIndex,
+                  segmentIndex: playbackEvent.segmentIndex, m: event.m, s: stringNumber,
+                  p: event.p, d: event.d, v: value, isSuri: true,
+                  threeNote: true, middleFrequency: glide.middleFrequency,
+                  endFrequency: glide.endFrequency, suriTotalDuration: requestedDuration }
+              })
+            : glide
             ? window.ShianAudioEngine.playFrequencyGlide(targetFrequency, glide.endFrequency, {
               exclusive: false,
               when,
